@@ -11,6 +11,7 @@ import numpy as np
 import os
 import time, datetime
 import zipfile
+import statsmodels.api as sm
 
 # todo prevalence ratio to calc true infections. Then calc asymptomatic and infectious
 TTL = 60 * 60 * 3  # 3 hours
@@ -35,7 +36,8 @@ def download_data():
 
     # mobility google
     with st.spinner("Fetching Google Mobility data..."):
-        urllib.request.urlretrieve('https://www.gstatic.com/covid19/mobility/Region_Mobility_Report_CSVs.zip','Region_Mobility_Report_CSVs.zip')
+        urllib.request.urlretrieve('https://www.gstatic.com/covid19/mobility/Region_Mobility_Report_CSVs.zip',
+                                   'Region_Mobility_Report_CSVs.zip')
         with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
             zip_ref.extractall('Region_Mobility_Report_CSVs')
 
@@ -82,24 +84,25 @@ def process_data(all_states, state):
     # df['totalTestResultsIncrease'] = kalman(df['totalTestResultsIncrease'])
 
     # Mobility data
-    mobility = pd.read_csv("Region_Mobility_Report_CSVs/2020_US_Region_Mobility_Report.csv",usecols=[0,1,2,5,7,8,9,10,11,12,13])
+    mobility = pd.read_csv("Region_Mobility_Report_CSVs/2020_US_Region_Mobility_Report.csv",
+                           usecols=[0, 1, 2, 5, 7, 8, 9, 10, 11, 12, 13])
     if all_states:
         mobility = mobility.iloc[mobility.isna().query('sub_region_1==True').index]
     else:
         mobility = mobility.iloc[mobility.query('iso_3166_2_code=="US-{}"'.format(state)).index]
     # Set date index to match df
     mobility['date'] = pd.to_datetime(mobility['date'], format='%Y-%m-%d')
-    mobility =mobility.query('date>="2020-03-01"')
+    mobility = mobility.query('date>="2020-03-01"')
     mobility.set_index('date', inplace=True)
     # Concat with df
     df = pd.concat([df, mobility], axis='columns')
     # Smooth
-    for c in ['retail_and_recreation_percent_change_from_baseline','grocery_and_pharmacy_percent_change_from_baseline','parks_percent_change_from_baseline','transit_stations_percent_change_from_baseline','workplaces_percent_change_from_baseline','residential_percent_change_from_baseline']:
+    for c in ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
+              'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
+              'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline']:
         df[c] = df[c].rolling(7).mean()
     # Most recent mobility data is empty, project forward
     df.interpolate(inplace=True)
-
-
 
     if np.inf in df.values:
         df = df.replace([np.inf, -np.inf], np.nan).dropna()
@@ -127,6 +130,7 @@ def calc_prevalence_ratio(df):
 def compute(date):
     # todo wrap all computation. use slider vals etc
     pass
+
 
 # def write_trends(cols):
 #     import talib
@@ -207,6 +211,7 @@ def get_correlations(df, cols):
     st.write(max_idx, max_r)
     st.write(cors.sort_values('r', ascending=False).reset_index(drop=True))
 
+
 # def kalman(x):
 #     kf = KalmanFilter(transition_matrices=[1],
 #                       observation_matrices=[1],
@@ -280,7 +285,7 @@ def interactive_plot(df):
 
 
 # @st.cache(ttl=TTL)
-def get_shifted_correlations(df,cols):
+def get_shifted_correlations(df, cols):
     # df = df.dropna()
     # Correlations --------------------------------------------------------------------------------
     # st.title("Shifted correlations")
@@ -360,9 +365,6 @@ def forecast_ui(cors_df):
     return days_back
 
 
-import statsmodels.api as sm
-
-
 @st.cache(ttl=TTL)
 def compute_weighted_forecast(days_back, b, shifted_cors):
     cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >0".format(b))
@@ -392,7 +394,8 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
     # OLS  todo disable
     # forecast = talib.TSF(forecast,7)
     df['forecast'] = forecast
-    model = sm.OLS(df[b].interpolate(limit_direction='both'), df['forecast'].interpolate(limit_direction='both'))  # Y,X or X,Y ?
+    model = sm.OLS(df[b].interpolate(limit_direction='both'),
+                   df['forecast'].interpolate(limit_direction='both'))  # Y,X or X,Y ?
     results = model.fit()
     # st.write('OLS Beta =', results.params)
     forecast = forecast * results.params[0]
@@ -418,7 +421,7 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
 def plot_forecast(lines, cors_table):
     idx = pd.date_range(start=df.index[0], periods=len(lines[b]))
     df2 = pd.DataFrame(lines).set_index(idx)
-    st.line_chart(df2, width=800,height=400,use_container_width=False)
+    st.line_chart(df2, width=800, height=400, use_container_width=False)
     # st.line_chart(df2,use_container_width=True)
     # plt.style.use('bmh')
     # st.write(df2.plot().get_figure())
@@ -534,9 +537,12 @@ if __name__ == '__main__':
 
     cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
             'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
-    cols.extend(['retail_and_recreation_percent_change_from_baseline','grocery_and_pharmacy_percent_change_from_baseline','parks_percent_change_from_baseline','transit_stations_percent_change_from_baseline','workplaces_percent_change_from_baseline','residential_percent_change_from_baseline'])
+    cols.extend(
+        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
+         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
+         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
     b = st.selectbox("Plot this:", cols, index=2)
-    df['Time Series Forecast'] = talib.TSF(df[b],timeperiod=7)
+    df['Time Series Forecast'] = talib.TSF(df[b], timeperiod=7)
     cols.append('Time Series Forecast')
     lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
                          value=len(df) - 70,
@@ -556,7 +562,7 @@ if __name__ == '__main__':
     st.write("Below you can choose two variables and see if they are correlated.")
 
     st.title("Interactive Correlation Explorer")
-    cols, a, b, lookback = get_shifted_correlations(df,cols)
+    cols, a, b, lookback = get_shifted_correlations(df, cols)
 
     # md = open('text.md').read()
     # st.markdown(md)
@@ -569,7 +575,8 @@ if __name__ == '__main__':
     st.markdown(
         "Infection fatality rate is calculated using the formula described by https://covid19-projections.com/estimating-true-infections-revisited:")
     st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
-    st.markdown("Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
+    st.markdown(
+        "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
     st.markdown(
         '''
         ## To Do
@@ -593,4 +600,3 @@ if __name__ == '__main__':
         '''
 
     )
-

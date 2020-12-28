@@ -3,3 +3,4 @@ pandas==1.2.0
 scikit-learn==0.24.0
 matplotlib==3.3.3
 streamlit==0.73.1
+statsmodels==0.12.1
