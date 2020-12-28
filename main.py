@@ -10,6 +10,7 @@ from numpy import nan as Nan
 import numpy as np
 import os
 import time, datetime
+import zipfile
 
 # todo prevalence ratio to calc true infections. Then calc asymptomatic and infectious
 TTL = 60 * 60 * 3  # 3 hours
@@ -35,7 +36,6 @@ def download_data():
     # mobility google
     with st.spinner("Fetching Google Mobility data..."):
         urllib.request.urlretrieve('https://www.gstatic.com/covid19/mobility/Region_Mobility_Report_CSVs.zip','Region_Mobility_Report_CSVs.zip')
-        import zipfile
         with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
             zip_ref.extractall('Region_Mobility_Report_CSVs')
 
