@@ -227,7 +227,6 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
     # scale to predicted val
     df[cols] = minmax_scale(df[cols], (df[b].min(), df[b].max()))
     for i, row in cors_df.iterrows():
-        shift = row['shift']
         col = row['a']
         # weight by cor
         df[col] = df[col] * row['r']
@@ -237,10 +236,15 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
         model = sm.OLS(df[b].interpolate(limit_direction='both'),
                        df[col].interpolate(limit_direction='both'))  # Y,X or X,Y ?
         results = model.fit()
-        df[col]= df[col]* results.params[0]
+        df[col] = df[col] * results.params[0]
 
     forecast_len = int(np.mean(cors_df['r'].values * cors_df['shift'].values))
     forecast = df[cols].mean(axis=1)
+
+    # todo ML forecast
+    # forecast = ml_regression(df[cols], df[b],7)
+    # df['forecast'] = forecast
+    # forecast = df['forecast']
 
     # OLS
     df['forecast'] = forecast
@@ -275,6 +279,30 @@ def plot_forecast(lines, cors_table):
     # st.line_chart(df2,use_container_width=True)
     # plt.style.use('bmh')
     # st.write(df2.plot().get_figure())
+
+
+@st.cache(ttl=TTL)
+def ml_regression(X, y, lookahead=7):
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.model_selection import train_test_split
+    y = y.shift(lookahead)
+    X.fillna(0, inplace=True)
+    y.fillna(0, inplace=True)
+    # X.interpolate(inplace=True, limit_direction='both')
+    # y.interpolate(inplace=True, limit_direction='both')
+    from sklearn.preprocessing import normalize
+    X = normalize(X)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, random_state=0)
+    reg = GradientBoostingRegressor(random_state=0, verbose=True)
+    # reg = RandomForestRegressor(random_state=0, verbose=True)
+    reg.fit(X_train, y_train)
+
+    pred = reg.predict(X_test)
+
+    score = reg.score(X_test, y_test)
+    reg.fit(X, y)
+    return reg.predict(X)
 
 
 # Unused functions below. May use in future. ---------------------------------------------------------------------------
