@@ -12,6 +12,8 @@ This forecast is a weighted average of correlated variables. *shift* is the numb
 
 The model searches every combination of *a*, *b*, and *shift* for the highest *r* values. Only correlations *>0.5* are used. *r* is used to weight each component of the forecast, and each component is scaled and aligned to the forecasted variable *b*. The forecast length is the average *shift* weighted by the average *r*.
 
+Ordinary Least Squares regression is also used to scale each series from the *a* column as well as the final forecast.
+
 You can choose two variables and see if they are correlated.
 
 Infection fatality rate is calculated using the formula described by https://covid19-projections.com/estimating-true-infections-revisited.
@@ -32,7 +34,7 @@ Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid
 
 - Try using cointegration instead of correlation
 
-- Cleanup messy code
+- Cleanup code
 
 - PCA, cluster, and TSNE plot different states
 

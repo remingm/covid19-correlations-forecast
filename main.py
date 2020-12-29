@@ -233,6 +233,11 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
         df[col] = df[col] * row['r']
         # shift on x axis
         df[col] = df[col].shift(row['shift'])
+        # OLS
+        model = sm.OLS(df[b].interpolate(limit_direction='both'),
+                       df[col].interpolate(limit_direction='both'))  # Y,X or X,Y ?
+        results = model.fit()
+        df[col]= df[col]* results.params[0]
 
     forecast_len = int(np.mean(cors_df['r'].values * cors_df['shift'].values))
     forecast = df[cols].mean(axis=1)
@@ -380,6 +385,8 @@ if __name__ == '__main__':
 
     st.markdown(""" ## Further Explanation
     The model searches every combination of $a$, $b$, and $shift$ for the highest $r$ values. Only correlations $>0.5$ are used. $r$ is used to weight each component of the forecast, and each component is scaled and aligned to the forecasted variable $b$. The forecast length is the average $shift$ weighted by the average $r$.
+    
+    Ordinary Least Squares regression is also used to scale each series from the *a* column as well as the final forecast.
     """)
 
     st.header("Sources and References")
@@ -402,7 +409,7 @@ if __name__ == '__main__':
 
         - Try using cointegration instead of correlation
 
-        - Cleanup messy code
+        - Cleanup code
 
         - PCA, cluster, and TSNE plot different states
 
