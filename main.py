@@ -1,17 +1,25 @@
 import urllib
-# import talib
+import copy
 import streamlit as st
 import pandas as pd
-from sklearn.preprocessing import minmax_scale
-# from pykalman import KalmanFilter
+from sklearn.preprocessing import minmax_scale, normalize
 import altair as alt
 import matplotlib.pyplot as plt
 from numpy import nan as Nan
 import numpy as np
 import os
-import time, datetime
+import datetime
 import zipfile
 import statsmodels.api as sm
+
+from sktime.forecasting.arima import ARIMA, AutoARIMA
+from sktime.forecasting.base import ForecastingHorizon
+from sktime.forecasting.compose import ReducedRegressionForecaster
+from sktime.performance_metrics.forecasting import sMAPE, smape_loss
+from sktime.utils.plotting import plot_series
+from sktime.forecasting.model_selection import temporal_train_test_split
+# sktime soft dependencies
+import pmdarima, seaborn
 
 # todo prevalence ratio to calc true infections. Then calc asymptomatic and infectious
 # todo states where cases and deaths are most and least correlated
@@ -23,7 +31,9 @@ st.set_page_config(page_title='Interactive Covid-19 Forecast and Correlation Exp
 
 
 def download_data():
-    # Periodically download data
+    """
+    Periodically download data to csv
+    """
     last_mod = os.path.getmtime('daily.csv')
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
     dif = datetime.datetime.now() - last_mod
@@ -47,6 +57,13 @@ def download_data():
 
 @st.cache(ttl=TTL, suppress_st_warning=True)
 def process_data(all_states, state):
+    """
+    Process CSVs. Smooth and compute new series.
+
+    :param all_states: Boolean if "all states" is checked
+    :param state: Selected US state
+    :return: Dataframe
+    """
     # Data
     if all_states:
         df = pd.read_csv('daily.csv').sort_values('date', ascending=True).reset_index()
@@ -101,8 +118,14 @@ def process_data(all_states, state):
 
 
 def calc_prevalence_ratio(df):
-    # prevalence_ratio(day_i) = (1250 / (day_i + 25)) * (positivity_rate(day_i))^(0.5) + 2, where day_i is the number of days since February 12, 2020.
-    # https://covid19-projections.com/estimating-true-infections-revisited/
+    """
+    Calculate prevalence ratio
+    prevalence_ratio(day_i) = (1250 / (day_i + 25)) * (positivity_rate(day_i))^(0.5) + 2, where day_i is the number of days since February 12, 2020.
+    https://covid19-projections.com/estimating-true-infections-revisited/
+
+    :param df: Dataframe from process_data()
+    :return: Dataframe with prevalence_ratio column
+    """
     import math
     days_since = df.index - datetime.datetime(year=2020, month=2, day=12)
     df['days_since_feb12'] = days_since.days.values
@@ -117,25 +140,14 @@ def calc_prevalence_ratio(df):
     df['prevalence_ratio'] = p_r_list
     return df
 
-
-# def write_trends(cols):
-#     import talib
-#     up = []
-#     down = []
-#     for metric in cols:
-#         if df[metric].iloc[-1] > talib.SAR(df[metric], df[metric])[-1]:
-#             # st.write("{} is rising.".format(metric))
-#             up.append(metric)
-#         else:
-#             down.append(metric)
-#             # st.write("{} is declining.".format(metric))
-#     st.subheader('Trending Up')
-#     st.write(', '.join(up))
-#     st.subheader('Trending Down')
-#     st.write(', '.join(down))
-
 @st.cache(ttl=TTL)
 def find_max_correlation(col, col2):
+    """
+    Take two series and test all alignments for maximum correlation.
+    :param col: Column 1
+    :param col2: Column 2
+    :return: Best r, best shift
+    """
     best_cor = -1
     best_i = 0
     for i in range(len(col) // 4):
@@ -149,6 +161,14 @@ def find_max_correlation(col, col2):
 
 
 def plot_cor(col, col2, best_i, best_cor):
+    """
+    Plot interactive chart showing correlation between two shifted series.
+
+    :param col:
+    :param col2:
+    :param best_i:
+    :param best_cor:
+    """
     # st.line_chart({col.name: col.shift(best_i), col2.name: col2})
     st.write("{} shifted {} days ahead is correlated with {}. $r={}$".format(col.name, best_i, col2.name, best_cor))
 
@@ -176,11 +196,16 @@ def plot_cor(col, col2, best_i, best_cor):
 
 # @st.cache(ttl=TTL)
 def get_shifted_correlations(df, cols):
+    """
+    Interactive correlation explorer. For two series, finds the alignment that maximizes correlation.
+    :param df:
+    :param cols:
+    :return:
+    """
     a = st.selectbox("Does this", cols, index=3)
     b = st.selectbox("Correlate with this?", cols, index=2)
     lb = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df), value=len(df) - 90,
                    step=10, format="%d days", key='window2')
-    # st.write(lb / 30, 'months back')
 
     cor, shift = find_max_correlation(df[a].iloc[-lb:], df[b].iloc[-lb:])
     col1, col2 = df[a].iloc[-lb:], df[b].iloc[-lb:]
@@ -191,6 +216,13 @@ def get_shifted_correlations(df, cols):
 
 @st.cache(ttl=TTL)
 def get_cor_table(cols, lb, df):
+    """
+    Generates dataframe of correlated series and alignments for all given columns.
+    :param cols:
+    :param lb: Lookback for correlation coefficent
+    :param df:
+    :return:
+    """
     # Find max
     shifted_cors = pd.DataFrame(columns=['a', 'b', 'r', 'shift'])
     for i in cols:
@@ -202,6 +234,11 @@ def get_cor_table(cols, lb, df):
 
 
 def forecast_ui(cors_df):
+    """
+    Gets user input for correlation forecast
+    :param cors_df: Correlations table
+    :return:
+    """
     # st.header('Forecast Based on Shifted Correlations')
 
     cors_df = cors_df.query("r >0.5 and shift >0")
@@ -217,6 +254,15 @@ def forecast_ui(cors_df):
 
 @st.cache(ttl=TTL)
 def compute_weighted_forecast(days_back, b, shifted_cors):
+    """
+    Computes a weighted average of all series that correlate with column B when shifted into the future.
+    The weighted average is scaled and aligned to the target column b.
+
+    :param days_back: How far back to start forecasting.
+    :param b: Target column to forecast.
+    :param shifted_cors: Table of correlated series and shifts
+    :return:
+    """
     cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >0".format(b))
     if len(cors_df) < 1:
         cors_df = shifted_cors.query("b == '{}' and r >0.0 and shift >=0".format(b))
@@ -241,7 +287,7 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
     forecast_len = int(np.mean(cors_df['r'].values * cors_df['shift'].values))
     forecast = df[cols].mean(axis=1)
 
-    # todo ML forecast
+    # ML forecast
     # forecast = ml_regression(df[cols], df[b],7)
     # df['forecast'] = forecast
     # forecast = df['forecast']
@@ -273,6 +319,11 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
 
 
 def plot_forecast(lines, cors_table):
+    """
+    Plots output from compute_weighted_forecast()
+    :param lines: Dict with forecast and target variable.
+    :param cors_table: Table of correlated series and shifts
+    """
     idx = pd.date_range(start=df.index[0], periods=len(lines[b]))
     df2 = pd.DataFrame(lines).set_index(idx)
     st.line_chart(df2, width=800, height=400, use_container_width=False)
@@ -281,19 +332,31 @@ def plot_forecast(lines, cors_table):
     # st.write(df2.plot().get_figure())
 
 
+
+# Unused functions below. May use in future. ---------------------------------------------------------------------------
+
+
 @st.cache(ttl=TTL)
 def ml_regression(X, y, lookahead=7):
+    """
+    Feed correlated and shifted variables into ML model for forecasting.
+    Doesn't seem to do better than weighted average forecast.
+
+    :param X: Correlation table. df[cols]
+    :param y: Target series. df[b]
+    :param lookahead: Forecast this many days ahead.
+    :return: Forecasted series.
+    """
     from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
     from sklearn.model_selection import train_test_split
-    y = y.shift(lookahead)
+    y_shift = y.shift(lookahead)
     X.fillna(0, inplace=True)
-    y.fillna(0, inplace=True)
+    y_shift.fillna(0, inplace=True)
     # X.interpolate(inplace=True, limit_direction='both')
     # y.interpolate(inplace=True, limit_direction='both')
-    from sklearn.preprocessing import normalize
     X = normalize(X)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, random_state=0)
+        X, y_shift, random_state=0,shuffle=False)
     reg = GradientBoostingRegressor(random_state=0, verbose=True)
     # reg = RandomForestRegressor(random_state=0, verbose=True)
     reg.fit(X_train, y_train)
@@ -301,11 +364,24 @@ def ml_regression(X, y, lookahead=7):
     pred = reg.predict(X_test)
 
     score = reg.score(X_test, y_test)
-    reg.fit(X, y)
+    reg.fit(X, y_shift)
+
+    # sktime
+    y.fillna(0, inplace=True)
+    y_train, y_test = temporal_train_test_split(y, test_size=14)
+    fh = ForecastingHorizon(y_test.index, is_relative=False)
+    forecaster = ReducedRegressionForecaster(
+        regressor=reg, window_length=12, strategy="recursive"
+    )
+    forecaster.fit(y_train)
+    y_pred = forecaster.predict(fh)
+    fig,ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
+    st.write(fig)
+    smape_loss(y_test, y_pred)
+
+
     return reg.predict(X)
 
-
-# Unused functions below. May use in future. ---------------------------------------------------------------------------
 
 def matplotlib_charts(df, a='deathIncrease', b='positiveIncrease'):
     plt.style.use('seaborn')
@@ -317,18 +393,6 @@ def matplotlib_charts(df, a='deathIncrease', b='positiveIncrease'):
     # plt.style.use('fivethirtyeight')
     plots = df[[a, b, 'percentPositive', 'hospitalizedCurrently']].plot(subplots=True, layout=(2, 2))
     st.pyplot(plots[0][0].get_figure())
-
-
-def interactive_plot(df):
-    st.title('Interactive Chart')
-    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
-            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
-    cols = st.multiselect('Metrics', cols, default=['positiveIncrease', 'percentPositive', 'deathIncrease'])
-    scale = st.checkbox('Scale all Data Equally', value=False)
-    scaled_df = df.copy()
-    if scale: scaled_df[cols] = minmax_scale(df[cols])
-    # st.line_chart(minmax_scale(df[cols]) if scale else df[cols], width=w, height=h, use_container_width=False)
-    st.line_chart(scaled_df[cols], width=w, height=h, use_container_width=False)
 
 
 def get_correlations(df, cols):
@@ -354,14 +418,136 @@ def get_correlations(df, cols):
     st.write(cors.sort_values('r', ascending=False).reset_index(drop=True))
 
 
-# todo normalize timeseries for each state by population and then cluster and tsne. Or instead of by population, minmax scale.
 def tsne_plot():
-    states = pd.read_csv('states_daily.csv')['state'].unique()
-    df = pd.read_csv('states_daily.csv').sort_values('date', ascending=True).reset_index().query(
-        'state=="{}"'.format(state))
+    """
+    Experiments with dimensionality reduction and clustering time series to find similarities in US states.
+    # todo normalize all timeseries for each state and then cluster and tsne.
+    """
+    from sklearn.decomposition import PCA, KernelPCA
+    from sklearn.pipeline import make_pipeline
+    from sklearn.manifold import TSNE
+    from sklearn.cluster import OPTICS,MeanShift
+    tsne = TSNE()
+    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
+            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
+    cols.extend(
+        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
+         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
+         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
+    states = pd.read_csv('states_daily.csv')['state'].unique()[:]
+    states_data = {}
+    for state in states:
+        with st.spinner("Processing "+state):
+            df = process_data(False,state)
+            states_data[state] =  df[cols].fillna(0)[-250:]
+            # states_data[state] = normalize(states_data[state])
 
-    df['date'] = pd.to_datetime(df['date'], format='%Y%m%d')
-    df.set_index('date', inplace=True)
+    state = st.selectbox("state", states)
+    st.write(states_data[state])
+    # for col in states_data[state].columns:
+    #     st.area_chart(states_data[state][col])
+
+    # df = pd.DataFrame(states_data.values(), index=states_data.keys())
+    X_valid_2D = tsne.fit_transform(states_data[state])
+    X_valid_2D = (X_valid_2D - X_valid_2D.min()) / (X_valid_2D.max() - X_valid_2D.min())
+    plt.style.use('ggplot')
+    fig, ax = plt.subplots()
+    ax.scatter(X_valid_2D[:, 0], X_valid_2D[:, 1], s=10)
+    st.pyplot(fig)
+
+    # PCA
+    reduced = {}
+    for state in states:
+        pca = PCA(n_components=1)
+        X_valid_1D = pca.fit_transform(states_data[state])
+        X_valid_1D = (X_valid_1D - X_valid_1D.min()) / (X_valid_1D.max() - X_valid_1D.min())
+        reduced[state] = [i[0] for i in X_valid_1D]
+
+    df= pd.DataFrame(reduced)
+    # st.bar_chart(df.transpose())
+    st.line_chart(df)
+    # Cluster
+    clustering = OPTICS(min_samples=2).fit(df.transpose())
+    # clustering = MeanShift().fit(df.transpose())
+    # st.bar_chart(clustering.labels_)
+
+    plt.style.use('ggplot')
+    fig, ax = plt.subplots()
+    ax.scatter(reduced.keys(),clustering.labels_, s=100)
+    # ax.bar(reduced.keys(),clustering.labels_)
+    st.table([reduced.keys(),clustering.labels_])
+    st.pyplot(fig)
+
+# @st.cache(ttl=TTL)
+def timeseries_forecast(df,colname,days_back=14):
+    """
+    ARIMA forecast
+
+    :param df: Dataframe from process_data()
+    :param colname: Name of forecasted variable
+    :param days_back: Lookback when validating, and lookahead for out of sample forecast.
+    """
+    y = df[colname].dropna()
+    y_train, y_test = temporal_train_test_split(y, test_size=days_back)
+    fh = ForecastingHorizon(y_test.index, is_relative=False)
+    forecaster = AutoARIMA(suppress_warnings=True)
+    forecaster.fit(y_train)
+    alpha = 0.05  # 95% prediction intervals
+    y_pred,pred_ints = forecaster.predict(fh,return_pred_int=True, alpha=alpha)
+    # st.write(smape_loss(y_test, y_pred))
+
+    # Plot with bands
+    fig, ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
+    ax.fill_between(
+        ax.get_lines()[-1].get_xdata(),
+        pred_ints["lower"],
+        pred_ints["upper"],
+        alpha=0.2,
+        color=ax.get_lines()[-1].get_c(),
+        label=f"{1 - alpha}% prediction intervals",
+    )
+    ax.legend()
+    fig_val = fig
+    # st.pyplot(fig)
+
+    # Forecast OOS
+    range = pd.date_range(start=y.index[-1]+datetime.timedelta(days=1),end=y.index[-1]+datetime.timedelta(days=days_back))
+    fh = ForecastingHorizon(range,is_relative=False)
+    forecaster = AutoARIMA(suppress_warnings=True)
+    forecaster.fit(y)
+    alpha = 0.05  # 95% prediction intervals
+    y_pred,pred_ints = forecaster.predict(fh,return_pred_int=True, alpha=alpha)
+    fig, ax = plot_series(y, y_pred, labels=["y_train","y_pred"])
+    # st.write(fig)
+    # Replot with intervals
+    ax.fill_between(
+        ax.get_lines()[-1].get_xdata(),
+        pred_ints["lower"],
+        pred_ints["upper"],
+        alpha=0.2,
+        color=ax.get_lines()[-1].get_c(),
+        label=f"{1 - alpha}% prediction intervals",
+    )
+    ax.legend()
+    # st.pyplot(fig)
+    return fig, fig_val
+
+def arima_ui(df):
+    st.title("ARIMA Forecast")
+    length = st.slider("Forecast length",1,30,value=14)
+
+    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
+            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
+    cols.extend(
+        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
+         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
+         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
+    b = st.selectbox("Forecast this:", cols, index=2)
+    fig, val= timeseries_forecast(df,b,length)
+    st.subheader("Forecast")
+    st.write(fig)
+    st.subheader("Past Performance")
+    st.write(val)
 
 
 if __name__ == '__main__':
@@ -380,10 +566,9 @@ if __name__ == '__main__':
     )
 
     # https://docs.streamlit.io/en/stable/troubleshooting/caching_issues.html#how-to-fix-the-cached-object-mutated-warning
-    import copy
-
     df = copy.deepcopy(process_data(all_states, state))
 
+    # todo global cols lists. One for cors and one for UI
     cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
             'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
     cols.extend(
@@ -429,20 +614,26 @@ if __name__ == '__main__':
 
         - Score forecasts with MSE or other metric
 
-        - Feed correlated variables into ML model for forecasting. LSTM, RF, XGBoost
+        - ~~Feed correlated variables into ML regression model for forecasting~~
 
         - ~~Add Google mobility data~~
 
         - Add data from https://rt.live
+        
+        - PCA, cluster, and TSNE plot different states - In progress
+        
+        - ~~ARIMA forecast~~
 
         - Try using cointegration instead of correlation
 
         - Cleanup code
 
-        - PCA, cluster, and TSNE plot different states
-
         - Intra-state correlations
+        
+        - Rename variables to more user-friendly names
 
         '''
 
     )
+
+    arima_ui(df)

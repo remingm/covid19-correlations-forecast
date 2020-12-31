@@ -26,16 +26,20 @@ Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid
 
 - Score forecasts with MSE or other metric
 
-- Feed correlated variables into ML model for forecasting. Try LSTM, RF, XGBoost
+- ~~Feed correlated variables into ML regression model for forecasting~~
 
 - ~~Add Google mobility data~~
 
 - Add data from https://rt.live
 
+- PCA, cluster, and TSNE plot different states - In progress
+
+- ~~ARIMA forecast~~
+
 - Try using cointegration instead of correlation
 
 - Cleanup code
 
-- PCA, cluster, and TSNE plot different states
-
 - Intra-state correlations
+
+- Rename variables to more user-friendly name
