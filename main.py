@@ -12,7 +12,7 @@ import datetime
 import zipfile
 import statsmodels.api as sm
 
-from sktime.forecasting.arima import ARIMA, AutoARIMA
+from sktime.forecasting.arima import AutoARIMA
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.compose import ReducedRegressionForecaster
 from sktime.performance_metrics.forecasting import sMAPE, smape_loss
@@ -24,7 +24,6 @@ import pmdarima, seaborn
 # todo prevalence ratio to calc true infections. Then calc asymptomatic and infectious
 # todo states where cases and deaths are most and least correlated
 
-TTL = 60 * 60 * 3  # 3 hours
 
 st.set_page_config(page_title='Interactive Covid-19 Forecast and Correlation Explorer', layout='centered',
                    initial_sidebar_state='expanded')
@@ -54,8 +53,11 @@ def download_data():
         with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
             zip_ref.extractall('Region_Mobility_Report_CSVs')
 
+    # Clear cache if we have new data
+    st.caching.clear_cache()
 
-@st.cache(ttl=TTL, suppress_st_warning=True)
+
+@st.cache(suppress_st_warning=True)
 def process_data(all_states, state):
     """
     Process CSVs. Smooth and compute new series.
@@ -141,7 +143,7 @@ def calc_prevalence_ratio(df):
     return df
 
 
-@st.cache(ttl=TTL)
+@st.cache()
 def find_max_correlation(col, col2):
     """
     Take two series and test all alignments for maximum correlation.
@@ -215,7 +217,7 @@ def get_shifted_correlations(df, cols):
     return cols, a, b, lb
 
 
-@st.cache(ttl=TTL)
+@st.cache()
 def get_cor_table(cols, lb, df):
     """
     Generates dataframe of correlated series and alignments for all given columns.
@@ -253,7 +255,7 @@ def forecast_ui(cors_df):
     return days_back
 
 
-@st.cache(ttl=TTL)
+@st.cache()
 def compute_weighted_forecast(days_back, b, shifted_cors):
     """
     Computes a weighted average of all series that correlate with column B when shifted into the future.
@@ -333,10 +335,95 @@ def plot_forecast(lines, cors_table):
     # st.write(df2.plot().get_figure())
 
 
+@st.cache()
+def compute_arima(df, colname, days_back, oos):
+    """
+    Must do computation in separate function for streamlit caching.
+
+    :param df:
+    :param colname:
+    :param days_back:
+    :param oos: Out of sample forecast.
+    :return:
+    """
+    y = df[colname].dropna()
+    if oos:
+        # Forecast OOS
+        range = pd.date_range(start=y.index[-1] + datetime.timedelta(days=1),
+                              end=y.index[-1] + datetime.timedelta(days=days_back))
+        fh = ForecastingHorizon(range, is_relative=False)
+        forecaster = AutoARIMA(suppress_warnings=True)
+        forecaster.fit(y)
+        alpha = 0.05  # 95% prediction intervals
+        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
+        return [y, y_pred], ["y", "y_pred"], pred_ints, alpha
+    else:
+        y_train, y_test = temporal_train_test_split(y, test_size=days_back)
+        fh = ForecastingHorizon(y_test.index, is_relative=False)
+        forecaster = AutoARIMA(suppress_warnings=True)
+        forecaster.fit(y_train)
+        alpha = 0.05  # 95% prediction intervals
+        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
+        return [y_train, y_test, y_pred], ["y_train", "y_test", "y_pred"], pred_ints, alpha
+
+
+def timeseries_forecast(df, colname, days_back=14):
+    """
+    ARIMA forecast wrapper
+
+    :param df: Dataframe from process_data()
+    :param colname: Name of forecasted variable
+    :param days_back: Lookback when validating, and lookahead for out of sample forecast.
+    """
+    st.subheader("Past Performance")
+    sktime_plot(*compute_arima(df, colname, days_back, False))
+
+    st.subheader("Forecast")
+    sktime_plot(*compute_arima(df, colname, days_back, True))
+
+
+def sktime_plot(series, labels, pred_ints, alpha):
+    """
+    Plot forecasts using sktime plot_series
+    https://docs.streamlit.io/en/stable/deploy_streamlit_app.html#limitations-and-known-issues
+
+    :param series:
+    :param labels:
+    :param pred_ints:
+    :param alpha:
+    """
+    from matplotlib.backends.backend_agg import RendererAgg
+    _lock = RendererAgg.lock
+
+    with _lock:
+        fig, ax = plot_series(*series, labels=labels)
+        # Plot with intervals
+        ax.fill_between(
+            ax.get_lines()[-1].get_xdata(),
+            pred_ints["lower"],
+            pred_ints["upper"],
+            alpha=0.2,
+            color=ax.get_lines()[-1].get_c(),
+            label=f"{1 - alpha}% prediction intervals",
+        )
+        ax.legend()
+        st.pyplot(fig)
+
+
+def arima_ui(df, cols):
+    st.title("ARIMA Forecast")
+    st.write(
+        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't seem to do as well as the correlation-based forecast.")
+    length = st.slider("Forecast length", 1, 20, value=14)
+
+    b = st.selectbox("Forecast this:", cols, index=2)
+    timeseries_forecast(df, b, length)
+
+
 # Unused functions below. May use in future. ---------------------------------------------------------------------------
 
 
-@st.cache(ttl=TTL)
+@st.cache()
 def ml_regression(X, y, lookahead=7):
     """
     Feed correlated and shifted variables into ML model for forecasting.
@@ -478,93 +565,6 @@ def tsne_plot():
     st.pyplot(fig)
 
 
-@st.cache(ttl=TTL)
-def compute_arima(df, colname, days_back, oos):
-    """
-    Must do computation in separate function for streamlit caching.
-
-    :param df:
-    :param colname:
-    :param days_back:
-    :param oos: Out of sample forecast.
-    :return:
-    """
-    y = df[colname].dropna()
-    if oos:
-        # Forecast OOS
-        range = pd.date_range(start=y.index[-1] + datetime.timedelta(days=1),
-                              end=y.index[-1] + datetime.timedelta(days=days_back))
-        fh = ForecastingHorizon(range, is_relative=False)
-        forecaster = AutoARIMA(suppress_warnings=True)
-        forecaster.fit(y)
-        alpha = 0.05  # 95% prediction intervals
-        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
-        return [y, y_pred], ["y", "y_pred"], pred_ints, alpha
-    else:
-        y_train, y_test = temporal_train_test_split(y, test_size=days_back)
-        fh = ForecastingHorizon(y_test.index, is_relative=False)
-        forecaster = AutoARIMA(suppress_warnings=True)
-        forecaster.fit(y_train)
-        alpha = 0.05  # 95% prediction intervals
-        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
-        return [y_train, y_test, y_pred], ["y_train", "y_test", "y_pred"], pred_ints, alpha
-
-
-def timeseries_forecast(df, colname, days_back=14):
-    """
-    ARIMA forecast wrapper
-
-    :param df: Dataframe from process_data()
-    :param colname: Name of forecasted variable
-    :param days_back: Lookback when validating, and lookahead for out of sample forecast.
-    """
-    st.subheader("Past Performance")
-    sktime_plot(*compute_arima(df, colname, days_back, False))
-
-    st.subheader("Forecast")
-    sktime_plot(*compute_arima(df, colname, days_back, True))
-
-
-def sktime_plot(series, labels, pred_ints, alpha):
-    """
-    Plot forecasts using sktime plot_series
-
-    :param series:
-    :param labels:
-    :param pred_ints:
-    :param alpha:
-    """
-    fig, ax = plot_series(*series, labels=labels)
-    # st.write(fig)
-    # Replot with intervals
-    ax.fill_between(
-        ax.get_lines()[-1].get_xdata(),
-        pred_ints["lower"],
-        pred_ints["upper"],
-        alpha=0.2,
-        color=ax.get_lines()[-1].get_c(),
-        label=f"{1 - alpha}% prediction intervals",
-    )
-    ax.legend()
-    st.pyplot(fig)
-
-
-def arima_ui(df):
-    st.title("ARIMA Forecast")
-    st.write(
-        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't seem to do as well as the correlation-based forecast.")
-    length = st.slider("Forecast length", 1, 30, value=14)
-
-    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
-            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
-    cols.extend(
-        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
-         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
-         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
-    b = st.selectbox("Forecast this:", cols, index=2)
-    timeseries_forecast(df, b, length)
-
-
 if __name__ == '__main__':
     download_data()
     w, h, = 900, 400
@@ -623,7 +623,7 @@ if __name__ == '__main__':
     st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
     st.markdown(
         "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
-    arima_ui(df)
+    arima_ui(df, cols)
     st.markdown(
         '''
         ## To Do
