@@ -140,6 +140,7 @@ def calc_prevalence_ratio(df):
     df['prevalence_ratio'] = p_r_list
     return df
 
+
 @st.cache(ttl=TTL)
 def find_max_correlation(col, col2):
     """
@@ -332,7 +333,6 @@ def plot_forecast(lines, cors_table):
     # st.write(df2.plot().get_figure())
 
 
-
 # Unused functions below. May use in future. ---------------------------------------------------------------------------
 
 
@@ -356,7 +356,7 @@ def ml_regression(X, y, lookahead=7):
     # y.interpolate(inplace=True, limit_direction='both')
     X = normalize(X)
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y_shift, random_state=0,shuffle=False)
+        X, y_shift, random_state=0, shuffle=False)
     reg = GradientBoostingRegressor(random_state=0, verbose=True)
     # reg = RandomForestRegressor(random_state=0, verbose=True)
     reg.fit(X_train, y_train)
@@ -375,10 +375,9 @@ def ml_regression(X, y, lookahead=7):
     )
     forecaster.fit(y_train)
     y_pred = forecaster.predict(fh)
-    fig,ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
+    fig, ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
     st.write(fig)
     smape_loss(y_test, y_pred)
-
 
     return reg.predict(X)
 
@@ -426,7 +425,7 @@ def tsne_plot():
     from sklearn.decomposition import PCA, KernelPCA
     from sklearn.pipeline import make_pipeline
     from sklearn.manifold import TSNE
-    from sklearn.cluster import OPTICS,MeanShift
+    from sklearn.cluster import OPTICS, MeanShift
     tsne = TSNE()
     cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
             'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
@@ -437,9 +436,9 @@ def tsne_plot():
     states = pd.read_csv('states_daily.csv')['state'].unique()[:]
     states_data = {}
     for state in states:
-        with st.spinner("Processing "+state):
-            df = process_data(False,state)
-            states_data[state] =  df[cols].fillna(0)[-250:]
+        with st.spinner("Processing " + state):
+            df = process_data(False, state)
+            states_data[state] = df[cols].fillna(0)[-250:]
             # states_data[state] = normalize(states_data[state])
 
     state = st.selectbox("state", states)
@@ -463,7 +462,7 @@ def tsne_plot():
         X_valid_1D = (X_valid_1D - X_valid_1D.min()) / (X_valid_1D.max() - X_valid_1D.min())
         reduced[state] = [i[0] for i in X_valid_1D]
 
-    df= pd.DataFrame(reduced)
+    df = pd.DataFrame(reduced)
     # st.bar_chart(df.transpose())
     st.line_chart(df)
     # Cluster
@@ -473,51 +472,69 @@ def tsne_plot():
 
     plt.style.use('ggplot')
     fig, ax = plt.subplots()
-    ax.scatter(reduced.keys(),clustering.labels_, s=100)
+    ax.scatter(reduced.keys(), clustering.labels_, s=100)
     # ax.bar(reduced.keys(),clustering.labels_)
-    st.table([reduced.keys(),clustering.labels_])
+    st.table([reduced.keys(), clustering.labels_])
     st.pyplot(fig)
 
-# @st.cache(ttl=TTL)
-def timeseries_forecast(df,colname,days_back=14):
+
+@st.cache(ttl=TTL)
+def compute_arima(df, colname, days_back, oos):
     """
-    ARIMA forecast
+    Must do computation in separate function for streamlit caching.
+
+    :param df:
+    :param colname:
+    :param days_back:
+    :param oos: Out of sample forecast.
+    :return:
+    """
+    y = df[colname].dropna()
+    if oos:
+        # Forecast OOS
+        range = pd.date_range(start=y.index[-1] + datetime.timedelta(days=1),
+                              end=y.index[-1] + datetime.timedelta(days=days_back))
+        fh = ForecastingHorizon(range, is_relative=False)
+        forecaster = AutoARIMA(suppress_warnings=True)
+        forecaster.fit(y)
+        alpha = 0.05  # 95% prediction intervals
+        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
+        return [y, y_pred], ["y", "y_pred"], pred_ints, alpha
+    else:
+        y_train, y_test = temporal_train_test_split(y, test_size=days_back)
+        fh = ForecastingHorizon(y_test.index, is_relative=False)
+        forecaster = AutoARIMA(suppress_warnings=True)
+        forecaster.fit(y_train)
+        alpha = 0.05  # 95% prediction intervals
+        y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
+        return [y_train, y_test, y_pred], ["y_train", "y_test", "y_pred"], pred_ints, alpha
+
+
+def timeseries_forecast(df, colname, days_back=14):
+    """
+    ARIMA forecast wrapper
 
     :param df: Dataframe from process_data()
     :param colname: Name of forecasted variable
     :param days_back: Lookback when validating, and lookahead for out of sample forecast.
     """
-    y = df[colname].dropna()
-    y_train, y_test = temporal_train_test_split(y, test_size=days_back)
-    fh = ForecastingHorizon(y_test.index, is_relative=False)
-    forecaster = AutoARIMA(suppress_warnings=True)
-    forecaster.fit(y_train)
-    alpha = 0.05  # 95% prediction intervals
-    y_pred,pred_ints = forecaster.predict(fh,return_pred_int=True, alpha=alpha)
-    # st.write(smape_loss(y_test, y_pred))
+    st.subheader("Past Performance")
+    sktime_plot(*compute_arima(df, colname, days_back, False))
 
-    # Plot with bands
-    fig, ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
-    ax.fill_between(
-        ax.get_lines()[-1].get_xdata(),
-        pred_ints["lower"],
-        pred_ints["upper"],
-        alpha=0.2,
-        color=ax.get_lines()[-1].get_c(),
-        label=f"{1 - alpha}% prediction intervals",
-    )
-    ax.legend()
-    fig_val = fig
-    # st.pyplot(fig)
+    st.subheader("Forecast")
+    sktime_plot(*compute_arima(df, colname, days_back, True))
 
-    # Forecast OOS
-    range = pd.date_range(start=y.index[-1]+datetime.timedelta(days=1),end=y.index[-1]+datetime.timedelta(days=days_back))
-    fh = ForecastingHorizon(range,is_relative=False)
-    forecaster = AutoARIMA(suppress_warnings=True)
-    forecaster.fit(y)
-    alpha = 0.05  # 95% prediction intervals
-    y_pred,pred_ints = forecaster.predict(fh,return_pred_int=True, alpha=alpha)
-    fig, ax = plot_series(y, y_pred, labels=["y_train","y_pred"])
+
+def sktime_plot(series, labels, pred_ints, alpha):
+    """
+    Plot forecasts using sktime plot_series
+
+    :param series:
+    :param labels:
+    :param pred_ints:
+    :param alpha:
+    """
+    fig, ax = plot_series(*series, labels=labels)
     # st.write(fig)
     # Replot with intervals
     ax.fill_between(
@@ -529,12 +546,14 @@ def timeseries_forecast(df,colname,days_back=14):
         label=f"{1 - alpha}% prediction intervals",
     )
     ax.legend()
-    # st.pyplot(fig)
-    return fig, fig_val
+    st.pyplot(fig)
+
 
 def arima_ui(df):
     st.title("ARIMA Forecast")
-    length = st.slider("Forecast length",1,30,value=14)
+    st.write(
+        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't seem to do as well as the correlation-based forecast.")
+    length = st.slider("Forecast length", 1, 30, value=14)
 
     cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
             'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
@@ -543,11 +562,7 @@ def arima_ui(df):
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
     b = st.selectbox("Forecast this:", cols, index=2)
-    fig, val= timeseries_forecast(df,b,length)
-    st.subheader("Forecast")
-    st.write(fig)
-    st.subheader("Past Performance")
-    st.write(val)
+    timeseries_forecast(df, b, length)
 
 
 if __name__ == '__main__':
@@ -608,6 +623,7 @@ if __name__ == '__main__':
     st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
     st.markdown(
         "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
+    arima_ui(df)
     st.markdown(
         '''
         ## To Do
@@ -635,5 +651,3 @@ if __name__ == '__main__':
         '''
 
     )
-
-    arima_ui(df)
