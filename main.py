@@ -93,8 +93,10 @@ def process_data(all_states, state):
     df['Infection Fatality Rate'] = (df['death'] / (df['positive'] * df['prevalence_ratio'])) * 100
 
     # Mobility data ------------------------------------------------------------------------------------------
+    mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date', 'retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline', 'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline', 'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline']
     mobility = pd.read_csv("Region_Mobility_Report_CSVs/2020_US_Region_Mobility_Report.csv",
-                           usecols=[0, 1, 2, 5, 7, 8, 9, 10, 11, 12, 13])
+                           usecols=mobility_cols)
+
     if all_states:
         mobility = mobility.iloc[mobility.isna().query('sub_region_1==True').index]
     else:
@@ -413,7 +415,7 @@ def sktime_plot(series, labels, pred_ints, alpha):
 def arima_ui(df, cols):
     st.title("ARIMA Forecast")
     st.write(
-        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't seem to do as well as the correlation-based forecast.")
+        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't do as well as the correlation-based forecast.")
     length = st.slider("Forecast length", 1, 20, value=14)
 
     b = st.selectbox("Forecast this:", cols, index=2)
@@ -626,7 +628,7 @@ if __name__ == '__main__':
     arima_ui(df, cols)
     st.markdown(
         '''
-        ## To Do
+        # To Do
 
         - Score forecasts with MSE or other metric
 
@@ -646,8 +648,10 @@ if __name__ == '__main__':
 
         - Intra-state correlations
         
-        - Rename variables to more user-friendly names
 
+        # Source Code
+        The source code is at https://github.com/remingm/covid19-correlations-forecast
         '''
 
     )
+    # st.code(open('main.py').read())

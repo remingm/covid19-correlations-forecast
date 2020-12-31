@@ -22,7 +22,7 @@ Data is pulled daily from https://covidtracking.com
 
 Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)
 
-## To Do
+# To Do
 
 - Score forecasts with MSE or other metric
 
@@ -41,5 +41,3 @@ Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid
 - Cleanup code
 
 - Intra-state correlations
-
-- Rename variables to more user-friendly name
