@@ -1,1 +1,1 @@
-web: streamlit run main.py --server.port 80
+web: streamlit run --server.enableCORS false --server.port 80 main.py
