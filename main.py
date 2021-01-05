@@ -415,11 +415,25 @@ def sktime_plot(series, labels, pred_ints, alpha):
 def arima_ui(df, cols):
     st.title("ARIMA Forecast")
     st.write(
-        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/). It doesn't do as well as the correlation-based forecast.")
+        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/).")
     length = st.slider("Forecast length", 1, 20, value=14)
 
     b = st.selectbox("Forecast this:", cols, index=2)
     timeseries_forecast(df, b, length)
+
+def rename_columns(df):
+    # todo
+    col_map = {'inIcuCurrently':'Currently in ICU', 'hospitalizedCurrently':'Currently Hospitalized', 'deathIncrease':'Daily Deaths', 'positiveIncrease':'Daily Positive Tests', 'percentPositive':'Percent of Tests Positive',
+            'totalTestResultsIncrease':'Daily Tests'}
+    mobility_cols=  {'retail_and_recreation_percent_change_from_baseline':'Retail/Recreation Mobility', 'grocery_and_pharmacy_percent_change_from_baseline':'Grocery/Pharmacy Mobility',
+         'parks_percent_change_from_baseline':'Parks Mobility', 'transit_stations_percent_change_from_baseline':'Transit Stations Mobility',
+         'workplaces_percent_change_from_baseline':"Workplaces Mobility", 'residential_percent_change_from_baseline':'Residential Mobility'}
+    df = df.rename(col_map)
+    df = df.rename(mobility_cols)
+
+    cols = list(df.columns)
+    cols.extend(['Case Fatality Rate', 'Infection Fatality Rate'])
+    return df, cols
 
 
 # Unused functions below. May use in future. ---------------------------------------------------------------------------
@@ -592,6 +606,7 @@ if __name__ == '__main__':
         ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
+    # df,cols= rename_columns(df)
     b = st.selectbox("Plot this:", cols, index=2)
     lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
                          value=len(df) - 70,
