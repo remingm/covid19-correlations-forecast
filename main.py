@@ -36,7 +36,7 @@ def download_data():
     last_mod = os.path.getmtime('daily.csv')
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
     dif = datetime.datetime.now() - last_mod
-    if dif < datetime.timedelta(hours=12): return
+    if dif < datetime.timedelta(hours=12) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
     with st.spinner("Fetching latest data..."):
         urllib.request.urlretrieve('https://api.covidtracking.com/v1/us/daily.csv', 'daily.csv')
@@ -52,6 +52,7 @@ def download_data():
     with st.spinner("Extracting Google mobility data..."):
         with zipfile.ZipFile('Region_Mobility_Report_CSVs.zip', 'r') as zip_ref:
             zip_ref.extractall('Region_Mobility_Report_CSVs')
+        os.remove('Region_Mobility_Report_CSVs.zip')
 
     # Clear cache if we have new data
     st.caching.clear_cache()
