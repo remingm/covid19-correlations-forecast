@@ -339,13 +339,13 @@ def plot_forecast(lines, cors_table):
 
 
 @st.cache()
-def compute_arima(df, colname, days_back, oos):
+def compute_arima(df, colname, days, oos):
     """
     Must do computation in separate function for streamlit caching.
 
     :param df:
     :param colname:
-    :param days_back:
+    :param days:
     :param oos: Out of sample forecast.
     :return:
     """
@@ -353,7 +353,7 @@ def compute_arima(df, colname, days_back, oos):
     if oos:
         # Forecast OOS
         range = pd.date_range(start=y.index[-1] + datetime.timedelta(days=1),
-                              end=y.index[-1] + datetime.timedelta(days=days_back))
+                              end=y.index[-1] + datetime.timedelta(days=days))
         fh = ForecastingHorizon(range, is_relative=False)
         forecaster = AutoARIMA(suppress_warnings=True)
         forecaster.fit(y)
@@ -361,7 +361,7 @@ def compute_arima(df, colname, days_back, oos):
         y_pred, pred_ints = forecaster.predict(fh, return_pred_int=True, alpha=alpha)
         return [y, y_pred], ["y", "y_pred"], pred_ints, alpha
     else:
-        y_train, y_test = temporal_train_test_split(y, test_size=days_back)
+        y_train, y_test = temporal_train_test_split(y, test_size=days)
         fh = ForecastingHorizon(y_test.index, is_relative=False)
         forecaster = AutoARIMA(suppress_warnings=True)
         forecaster.fit(y_train)
@@ -370,7 +370,7 @@ def compute_arima(df, colname, days_back, oos):
         return [y_train, y_test, y_pred], ["y_train", "y_test", "y_pred"], pred_ints, alpha
 
 
-def timeseries_forecast(df, colname, days_back=14):
+def timeseries_forecast(df, colname, days=14):
     """
     ARIMA forecast wrapper
 
@@ -379,10 +379,10 @@ def timeseries_forecast(df, colname, days_back=14):
     :param days_back: Lookback when validating, and lookahead for out of sample forecast.
     """
     st.subheader("Past Performance")
-    sktime_plot(*compute_arima(df, colname, days_back, False))
+    sktime_plot(*compute_arima(df, colname, days, False))
 
     st.subheader("Forecast")
-    sktime_plot(*compute_arima(df, colname, days_back, True))
+    sktime_plot(*compute_arima(df, colname, days, True))
 
 
 def sktime_plot(series, labels, pred_ints, alpha):
@@ -416,7 +416,7 @@ def sktime_plot(series, labels, pred_ints, alpha):
 def arima_ui(df, cols):
     st.title("ARIMA Forecast")
     st.write(
-        "This forecast uses an entirely different method called [ARIMA](reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/).")
+        "This forecast uses an entirely different method called [ARIMA](https://www.reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/gf5a9ub?utm_source=share&utm_medium=web2x&context=3).")
     length = st.slider("Forecast length", 1, 20, value=14)
 
     b = st.selectbox("Forecast this:", cols, index=2)
@@ -599,6 +599,7 @@ if __name__ == '__main__':
 
     # https://docs.streamlit.io/en/stable/troubleshooting/caching_issues.html#how-to-fix-the-cached-object-mutated-warning
     df = copy.deepcopy(process_data(all_states, state))
+    df_arima = copy.deepcopy(df)
 
     # todo global cols lists. One for cors and one for UI
     cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
@@ -641,7 +642,7 @@ if __name__ == '__main__':
     st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
     st.markdown(
         "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
-    arima_ui(df, cols)
+    arima_ui(df_arima, cols)
     st.markdown(
         '''
         # To Do
