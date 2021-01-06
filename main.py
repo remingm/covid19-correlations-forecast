@@ -588,16 +588,14 @@ if __name__ == '__main__':
     states = pd.read_csv('states_daily.csv')['state'].unique()
 
     with st.sidebar:
-        st.title("Choose a Mode:")
-        mode = st.radio("Mode",['Correlations Forecast','Correlation Explorer','ARIMA Forecast'])
+        st.title("Covid-19 Forecast and Correlation Explorer")
+        # st.title("Choose a Mode:")
+        mode = st.radio("Menu",['Correlations Forecast','Correlation Explorer','ARIMA Forecast'])
         all_states = st.checkbox("All States", True)
         state = st.selectbox("State", states,index=37)
+        st.write(":computer: [Source Code On Github](https://github.com/remingm/covid19-correlations-forecast)")
 
-    st.markdown(
-        """
-                    # Interactive Covid-19 Forecast and Correlation Explorer
-        """
-    )
+    # st.title("Interactive Covid-19 Forecast and Correlation Explorer")
 
     # https://docs.streamlit.io/en/stable/troubleshooting/caching_issues.html#how-to-fix-the-cached-object-mutated-warning
     df = copy.deepcopy(process_data(all_states, state))
@@ -611,6 +609,7 @@ if __name__ == '__main__':
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
     if mode =='Correlations Forecast':
+        st.title('Correlations Forecast')
         # df,cols= rename_columns(df)
         b = st.selectbox("Plot this:", cols, index=2)
         lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
@@ -636,9 +635,8 @@ if __name__ == '__main__':
         Ordinary Least Squares regression is also used to scale each series from the *a* column as well as the final forecast.
         """)
     elif mode == 'Correlation Explorer':
-        st.write("Below you can choose two variables and see if they are correlated.")
-
         st.title("Interactive Correlation Explorer")
+        st.write("Choose two variables and see if they are correlated.")
         cols, a, b, lookback = get_shifted_correlations(df, cols)
 
 
@@ -658,7 +656,7 @@ if __name__ == '__main__':
     #     The source code is at https://github.com/remingm/covid19-correlations-forecast
     #     '''
     # )
-    st.write("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
+    st.info("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
 
     # st.markdown(
     #     '''
