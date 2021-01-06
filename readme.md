@@ -1,8 +1,10 @@
 # Interactive Covid-19 Forecast and Correlation Explorer
 
-![screenshot-ifr.png](screenshot-ifr.png)
+![screenshot-ifr.png](forecast.png)
 
-![Screen Shot 2020-12-26 at 12.06.43 PM.png](Screen%20Shot%202020-12-26%20at%2012.06.43%20PM.png)
+![Screen Shot 2020-12-26 at 12.06.43 PM.png](cors.png)
+
+![](arima.png)
 
 ## How is this forecast made?
 
