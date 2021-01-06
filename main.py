@@ -588,8 +588,10 @@ if __name__ == '__main__':
     states = pd.read_csv('states_daily.csv')['state'].unique()
 
     with st.sidebar:
+        st.title("Choose a Mode:")
+        mode = st.radio("Mode",['Correlations Forecast','Correlation Explorer','ARIMA Forecast'])
         all_states = st.checkbox("All States", True)
-        state = st.selectbox("State", states)
+        state = st.selectbox("State", states,index=37)
 
     st.markdown(
         """
@@ -608,33 +610,40 @@ if __name__ == '__main__':
         ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
-    # df,cols= rename_columns(df)
-    b = st.selectbox("Plot this:", cols, index=2)
-    lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
-                         value=len(df) - 70,
-                         step=10, format="%d days")
-    cors_df = get_cor_table(cols, lookback, df)
+    if mode =='Correlations Forecast':
+        # df,cols= rename_columns(df)
+        b = st.selectbox("Plot this:", cols, index=2)
+        lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
+                             value=len(df) - 70,
+                             step=10, format="%d days")
+        cors_df = get_cor_table(cols, lookback, df)
 
-    days_back = forecast_ui(cors_df)
-    lines, cors_table = compute_weighted_forecast(days_back, b, cors_df)
-    plot_forecast(lines, cors_table)
+        days_back = forecast_ui(cors_df)
+        lines, cors_table = compute_weighted_forecast(days_back, b, cors_df)
+        plot_forecast(lines, cors_table)
 
-    st.markdown("""
-    ## How is this forecast made?
+        st.markdown("""
+        ## How is this forecast made?
 
-    This forecast is a weighted average of variables from the table below. $shift$ is the number of days $a$ is shifted forward, and $r$ is the [Pearson correlation coefficient](https://en.wikipedia.org/wiki/Pearson_correlation_coefficient) between shifted $a$ and $b$.
-    """)
-    st.write(cors_table)
-    st.write("Below you can choose two variables and see if they are correlated.")
+        This forecast is a weighted average of variables from the table below. $shift$ is the number of days $a$ is shifted forward, and $r$ is the [Pearson correlation coefficient](https://en.wikipedia.org/wiki/Pearson_correlation_coefficient) between shifted $a$ and $b$.
+        """)
+        st.write(cors_table)
 
-    st.title("Interactive Correlation Explorer")
-    cols, a, b, lookback = get_shifted_correlations(df, cols)
+        st.markdown(""" 
+        ## Further Explanation
+        The model searches every combination of $a$, $b$, and $shift$ for the highest $r$ values. Only correlations $>0.5$ are used. $r$ is used to weight each component of the forecast, and each component is scaled and aligned to the forecasted variable $b$. The forecast length is the average $shift$ weighted by the average $r$.
 
-    st.markdown(""" ## Further Explanation
-    The model searches every combination of $a$, $b$, and $shift$ for the highest $r$ values. Only correlations $>0.5$ are used. $r$ is used to weight each component of the forecast, and each component is scaled and aligned to the forecasted variable $b$. The forecast length is the average $shift$ weighted by the average $r$.
-    
-    Ordinary Least Squares regression is also used to scale each series from the *a* column as well as the final forecast.
-    """)
+        Ordinary Least Squares regression is also used to scale each series from the *a* column as well as the final forecast.
+        """)
+    elif mode == 'Correlation Explorer':
+        st.write("Below you can choose two variables and see if they are correlated.")
+
+        st.title("Interactive Correlation Explorer")
+        cols, a, b, lookback = get_shifted_correlations(df, cols)
+
+
+    elif mode == 'ARIMA Forecast':
+        arima_ui(df_arima, cols)
 
     st.header("Sources and References")
     st.markdown(
@@ -642,33 +651,37 @@ if __name__ == '__main__':
     st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
     st.markdown(
         "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
-    arima_ui(df_arima, cols)
-    st.markdown(
-        '''
-        # To Do
 
-        - Score forecasts with MSE or other metric
+    # st.markdown(
+    #     '''
+    #     ## Source Code
+    #     The source code is at https://github.com/remingm/covid19-correlations-forecast
+    #     '''
+    # )
+    st.write("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
 
-        - ~~Feed correlated variables into ML regression model for forecasting~~
-
-        - ~~Add Google mobility data~~
-
-        - Add data from https://rt.live
+    # st.markdown(
+    #     '''
+    #     # To Do
+    #
+    #     - Score forecasts with MSE or other metric
+    #
+    #     - ~~Feed correlated variables into ML regression model for forecasting~~
+    #
+    #     - ~~Add Google mobility data~~
+    #
+    #     - Add data from https://rt.live
+    #
+    #     - PCA, cluster, and TSNE plot different states - In progress
+    #
+    #     - ~~ARIMA forecast~~
+    #
+    #     - Try using cointegration instead of correlation
+    #
+    #     - Cleanup code
+    #
+    #     - Intra-state correlations
+    #     '''
+    # )
         
-        - PCA, cluster, and TSNE plot different states - In progress
-        
-        - ~~ARIMA forecast~~
-
-        - Try using cointegration instead of correlation
-
-        - Cleanup code
-
-        - Intra-state correlations
-        
-
-        # Source Code
-        The source code is at https://github.com/remingm/covid19-correlations-forecast
-        '''
-
-    )
     # st.code(open('main.py').read())
