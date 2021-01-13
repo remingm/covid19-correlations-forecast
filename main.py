@@ -86,7 +86,7 @@ def process_data(all_states, state):
     df['death'] = df['death'].rolling(7).mean()
 
     # New features
-    df['percentPositive'] = (df['positiveIncrease'] / df['totalTestResultsIncrease']).rolling(7).mean()
+    df['percentPositive'] = (df['positiveIncrease'] / df['totalTestResultsIncrease']).rolling(7).mean() * 100
     df['Case Fatality Rate'] = (df['death'] / df['positive']) * 100
 
     df = calc_prevalence_ratio(df)
