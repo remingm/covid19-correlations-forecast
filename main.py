@@ -592,7 +592,7 @@ if __name__ == '__main__':
         st.title("Covid-19 Forecast and Correlation Explorer")
         st.subheader("Try each mode below:")
         mode = st.radio("Menu",['Correlations Forecast','Correlation Explorer','ARIMA Forecast'])
-        st.subheader("Select a state or all US States:")
+        st.subheader("Select a state or all US states:")
         all_states = st.checkbox("All States", True)
         state = st.selectbox("State", states,index=37)
         st.write(":computer: [Source Code On Github](https://github.com/remingm/covid19-correlations-forecast)")
