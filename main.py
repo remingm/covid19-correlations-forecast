@@ -86,12 +86,13 @@ def process_data(all_states, state):
     df['death'] = df['death'].rolling(7).mean()
 
     # New features
-    df['percentPositive'] = (df['positiveIncrease'] / df['totalTestResultsIncrease']).rolling(7).mean() * 100
+    df['percentPositive'] = (df['positiveIncrease'] / df['totalTestResultsIncrease']).rolling(7).mean()
     df['Case Fatality Rate'] = (df['death'] / df['positive']) * 100
 
     df = calc_prevalence_ratio(df)
 
     df['Infection Fatality Rate'] = (df['death'] / (df['positive'] * df['prevalence_ratio'])) * 100
+    df['percentPositive'] = df['percentPositive']*100
 
     # Mobility data ------------------------------------------------------------------------------------------
     mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date', 'retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline', 'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline', 'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline']
