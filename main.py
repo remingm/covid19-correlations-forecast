@@ -613,10 +613,11 @@ if __name__ == '__main__':
     if mode =='Correlations Forecast':
         st.title('Correlations Forecast')
         # df,cols= rename_columns(df)
-        b = st.selectbox("Plot this:", cols, index=2)
-        lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
-                             value=len(df) - 70,
-                             step=10, format="%d days")
+        b = st.selectbox("Choose a variable:", cols, index=2)
+        # lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
+        #                      value=len(df) - 70,
+        #                      step=10, format="%d days")
+        lookback = len(df) -70
         cors_df = get_cor_table(cols, lookback, df)
 
         days_back = forecast_ui(cors_df)
