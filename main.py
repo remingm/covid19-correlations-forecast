@@ -240,7 +240,7 @@ def get_cor_table(cols, lb, df):
     return shifted_cors
 
 
-def forecast_ui(cors_df):
+def forecast_ui(cors_df,lookback):
     """
     Gets user input for correlation forecast
     :param cors_df: Correlations table
@@ -255,7 +255,7 @@ def forecast_ui(cors_df):
 
     # forecast_len = int(np.mean(cors_df['r'].values * cors_df['shift'].values))
     # st.write("Forecast Length = average shift weighted by average correlation = ", forecast_len)
-    days_back = -st.slider("See how past forecasts did:", 0, lookback, 0, format="%d days back") - 1
+    days_back = -st.slider("See how past forecasts did:", 0, lookback//2, 0, format="%d days back") - 1
     return days_back
 
 
@@ -604,8 +604,8 @@ if __name__ == '__main__':
     df_arima = copy.deepcopy(df)
 
     # todo global cols lists. One for cors and one for UI
-    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
-            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
+    cols = ['Infection Fatality Rate','deathIncrease','inIcuCurrently', 'hospitalizedCurrently',  'positiveIncrease', 'percentPositive',
+            'totalTestResultsIncrease', 'Case Fatality Rate']
     cols.extend(
         ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
@@ -613,14 +613,14 @@ if __name__ == '__main__':
     if mode =='Correlations Forecast':
         st.title('Correlations Forecast')
         # df,cols= rename_columns(df)
-        b = st.selectbox("Choose a variable:", cols, index=2)
+        b = st.selectbox("Choose a variable:", cols, index=0)
         # lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
         #                      value=len(df) - 70,
         #                      step=10, format="%d days")
         lookback = len(df) -70
         cors_df = get_cor_table(cols, lookback, df)
 
-        days_back = forecast_ui(cors_df)
+        days_back = forecast_ui(cors_df,lookback)
         lines, cors_table = compute_weighted_forecast(days_back, b, cors_df)
         plot_forecast(lines, cors_table)
 
