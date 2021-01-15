@@ -33,12 +33,18 @@ def download_data():
     """
     Periodically download data to csv
     """
+    # data_dir = '/tmp/'
+    # import shutil
+    # shutil.copy("daily.csv",data_dir)
+    # os.path.join(data_dir,'daily.csv')
+
     last_mod = os.path.getmtime('daily.csv')
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
     dif = datetime.datetime.now() - last_mod
     if dif < datetime.timedelta(hours=12) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
     with st.spinner("Fetching latest data..."):
+        os.remove('daily.csv')
         urllib.request.urlretrieve('https://api.covidtracking.com/v1/us/daily.csv', 'daily.csv')
         urllib.request.urlretrieve('https://api.covidtracking.com/v1/states/daily.csv', 'states_daily.csv')
         # todo rt
