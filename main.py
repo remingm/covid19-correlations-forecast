@@ -45,6 +45,7 @@ def download_data():
 
     with st.spinner("Fetching latest data..."):
         os.remove('daily.csv')
+        os.remove('states_daily.csv')
         urllib.request.urlretrieve('https://api.covidtracking.com/v1/us/daily.csv', 'daily.csv')
         urllib.request.urlretrieve('https://api.covidtracking.com/v1/states/daily.csv', 'states_daily.csv')
         # todo rt
