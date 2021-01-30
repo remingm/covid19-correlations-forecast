@@ -61,6 +61,11 @@ def download_data():
             zip_ref.extractall('Region_Mobility_Report_CSVs')
         os.remove('Region_Mobility_Report_CSVs.zip')
 
+    with st.spinner("Downloading vaccination data..."):
+        urllib.request.urlretrieve(
+            'https://raw.githubusercontent.com/youyanggu/covid19-cdc-vaccination-data/main/aggregated_adjusted.csv',
+            'vaccine.csv')
+
     # Clear cache if we have new data
     st.caching.clear_cache()
 
@@ -99,10 +104,14 @@ def process_data(all_states, state):
     df = calc_prevalence_ratio(df)
 
     df['Infection Fatality Rate'] = (df['death'] / (df['positive'] * df['prevalence_ratio'])) * 100
-    df['percentPositive'] = df['percentPositive']*100
+    df['percentPositive'] = df['percentPositive'] * 100
 
     # Mobility data ------------------------------------------------------------------------------------------
-    mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date', 'retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline', 'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline', 'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline']
+    mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date',
+                     'retail_and_recreation_percent_change_from_baseline',
+                     'grocery_and_pharmacy_percent_change_from_baseline', 'parks_percent_change_from_baseline',
+                     'transit_stations_percent_change_from_baseline', 'workplaces_percent_change_from_baseline',
+                     'residential_percent_change_from_baseline']
     mobility = pd.read_csv("Region_Mobility_Report_CSVs/2020_US_Region_Mobility_Report.csv",
                            usecols=mobility_cols)
 
@@ -124,6 +133,29 @@ def process_data(all_states, state):
     # Most recent mobility data is empty, project forward
     df.interpolate(inplace=True)
     # End mobility data processing ---------------------------------------------------------------------------
+
+    # Vaccination data
+    # vaccine = pd.read_csv('vaccine.csv')
+    # vaccine['Date'] = pd.to_datetime(vaccine['Date'], format='%Y-%m-%d')
+    # vaccine=vaccine.query('Date>="2020-03-01"')
+    # vaccine.set_index('Date', inplace=True)
+    #
+    # vac_col = 'doses_administered_daily_7day_avg'
+    # if all_states:
+    #     us_total = []
+    #     for s in states:
+    #         vac_state = vaccine.query('Location=="{}"'.format(s))
+    #         if len(us_total)==0: us_total = vac_state[vac_col]
+    #         else:
+    #             us_total += vac_state[vac_col]
+    #     vaccine = us_total
+    #
+    # else:
+    #     vaccine = vaccine.query('Location=="{}"'.format(state))[vac_col]
+    # # Fill empty dates
+    # df[vac_col] = vaccine
+    # df.fillna(method='pad')
+    # End Vaccination data
 
     if np.inf in df.values:
         df = df.replace([np.inf, -np.inf], np.nan).dropna()
@@ -247,7 +279,7 @@ def get_cor_table(cols, lb, df):
     return shifted_cors
 
 
-def forecast_ui(cors_df,lookback):
+def forecast_ui(cors_df, lookback):
     """
     Gets user input for correlation forecast
     :param cors_df: Correlations table
@@ -262,7 +294,7 @@ def forecast_ui(cors_df,lookback):
 
     # forecast_len = int(np.mean(cors_df['r'].values * cors_df['shift'].values))
     # st.write("Forecast Length = average shift weighted by average correlation = ", forecast_len)
-    days_back = -st.slider("See how past forecasts did:", 0, lookback//2, 0, format="%d days back") - 1
+    days_back = -st.slider("See how past forecasts did:", 0, lookback // 2, 0, format="%d days back") - 1
     return days_back
 
 
@@ -277,8 +309,8 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
     :param shifted_cors: Table of correlated series and shifts
     :return:
     """
-    cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >0".format(b))
-    if len(cors_df) < 1:
+    cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >=0".format(b))
+    if len(cors_df) < 3:
         cors_df = shifted_cors.query("b == '{}' and r >0.0 and shift >=0".format(b))
         # st.warning("No strong correlations found for forecasting. Try adjusting lookback window.")
         # st.stop()
@@ -427,16 +459,22 @@ def arima_ui(df, cols):
         "This forecast uses an entirely different method called [ARIMA](https://www.reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/gf5a9ub?utm_source=share&utm_medium=web2x&context=3).")
     length = st.slider("Forecast length", 1, 20, value=14)
 
-    b = st.selectbox("Forecast this:", cols, index=2)
+    b = st.selectbox("Forecast this:", cols, index=3)
     timeseries_forecast(df, b, length)
+
 
 def rename_columns(df):
     # todo
-    col_map = {'inIcuCurrently':'Currently in ICU', 'hospitalizedCurrently':'Currently Hospitalized', 'deathIncrease':'Daily Deaths', 'positiveIncrease':'Daily Positive Tests', 'percentPositive':'Percent of Tests Positive',
-            'totalTestResultsIncrease':'Daily Tests'}
-    mobility_cols=  {'retail_and_recreation_percent_change_from_baseline':'Retail/Recreation Mobility', 'grocery_and_pharmacy_percent_change_from_baseline':'Grocery/Pharmacy Mobility',
-         'parks_percent_change_from_baseline':'Parks Mobility', 'transit_stations_percent_change_from_baseline':'Transit Stations Mobility',
-         'workplaces_percent_change_from_baseline':"Workplaces Mobility", 'residential_percent_change_from_baseline':'Residential Mobility'}
+    col_map = {'inIcuCurrently': 'Currently in ICU', 'hospitalizedCurrently': 'Currently Hospitalized',
+               'deathIncrease': 'Daily Deaths', 'positiveIncrease': 'Daily Positive Tests',
+               'percentPositive': 'Percent of Tests Positive',
+               'totalTestResultsIncrease': 'Daily Tests'}
+    mobility_cols = {'retail_and_recreation_percent_change_from_baseline': 'Retail/Recreation Mobility',
+                     'grocery_and_pharmacy_percent_change_from_baseline': 'Grocery/Pharmacy Mobility',
+                     'parks_percent_change_from_baseline': 'Parks Mobility',
+                     'transit_stations_percent_change_from_baseline': 'Transit Stations Mobility',
+                     'workplaces_percent_change_from_baseline': "Workplaces Mobility",
+                     'residential_percent_change_from_baseline': 'Residential Mobility'}
     df = df.rename(col_map)
     df = df.rename(mobility_cols)
 
@@ -591,6 +629,15 @@ def tsne_plot():
 
 
 if __name__ == '__main__':
+    # todo global cols lists. One for cors and one for UI
+    cols = ['Infection Fatality Rate', 'positiveIncrease', 'deathIncrease', 'hospitalizedCurrently', 'inIcuCurrently',
+            'percentPositive', 'totalTestResultsIncrease', 'Case Fatality Rate']
+    cols.extend(
+        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
+         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
+         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
+    # cols.append('doses_administered_daily_7day_avg')
+
     download_data()
     w, h, = 900, 400
     states = pd.read_csv('states_daily.csv')['state'].unique()
@@ -598,10 +645,10 @@ if __name__ == '__main__':
     with st.sidebar:
         st.title("Covid-19 Forecast and Correlation Explorer")
         st.subheader("Try each mode below:")
-        mode = st.radio("Menu",['Correlations Forecast','Correlation Explorer','ARIMA Forecast'])
+        mode = st.radio("Menu", ['Correlations Forecast', 'Correlation Explorer', 'ARIMA Forecast'])
         st.subheader("Select a state or all US states:")
         all_states = st.checkbox("All States", True)
-        state = st.selectbox("State", states,index=37)
+        state = st.selectbox("State", states, index=37)
         st.write(":computer: [Source Code On Github](https://github.com/remingm/covid19-correlations-forecast)")
 
     # st.title("Interactive Covid-19 Forecast and Correlation Explorer")
@@ -610,25 +657,22 @@ if __name__ == '__main__':
     df = copy.deepcopy(process_data(all_states, state))
     df_arima = copy.deepcopy(df)
 
-    # todo global cols lists. One for cors and one for UI
-    cols = ['Infection Fatality Rate','deathIncrease','inIcuCurrently', 'hospitalizedCurrently',  'positiveIncrease', 'percentPositive',
-            'totalTestResultsIncrease', 'Case Fatality Rate']
-    cols.extend(
-        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
-         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
-         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
-    if mode =='Correlations Forecast':
+    if mode == 'Correlations Forecast':
         st.title('Correlations Forecast')
         # df,cols= rename_columns(df)
-        b = st.selectbox("Choose a variable:", cols, index=0)
+        b = st.selectbox("Choose a variable:", cols, index=3)
         # lookback = st.slider('How far back should we look for correlations?', min_value=0, max_value=len(df),
         #                      value=len(df) - 70,
         #                      step=10, format="%d days")
-        lookback = len(df) -70
+        lookback = len(df) - 70
         cors_df = get_cor_table(cols, lookback, df)
 
-        days_back = forecast_ui(cors_df,lookback)
+        days_back = forecast_ui(cors_df, lookback)
         lines, cors_table = compute_weighted_forecast(days_back, b, cors_df)
+
+        if len(cors_table) < 3: st.warning(
+            "Few correlations found. Forecast may not be accurate. Try another variable.")
+
         plot_forecast(lines, cors_table)
 
         st.markdown("""
@@ -691,5 +735,5 @@ if __name__ == '__main__':
     #     - Intra-state correlations
     #     '''
     # )
-        
+
     # st.code(open('main.py').read())
