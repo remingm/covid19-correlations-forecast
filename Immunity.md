@@ -6,7 +6,9 @@ When the herd immunity threshold is reached.
 
 > **Herd immunity may be achieved either through infection and recovery or by vaccination.** Herd immunity also protects those who are unable to be vaccinated, such as newborns and immunocompromised people, because the disease spread within the population is very limited. [Source](https://jamanetwork.com/journals/jama/fullarticle/2772168)  
 
-## What is the threshold? This is debated among scientists.
+## What is the threshold? 
+
+This is debated among scientists.
 
 One factor that may drastically alter the herd immunity threshold (HIT) is pre-existing immunity from other coronaviruses like the common cold.  
 

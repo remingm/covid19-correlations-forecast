@@ -651,7 +651,7 @@ def pop_immunity(df):
         'Census2019'] * 100
 
     st.area_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
-    st.area_chart(df['Estimated Population Immunity %'],height=100)
+    # st.area_chart(df['Estimated Population Immunity %'],height=100)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
     immune_pct = round(df['Estimated Population Immunity %'].iloc[-1],2)
