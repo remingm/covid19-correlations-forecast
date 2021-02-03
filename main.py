@@ -689,7 +689,7 @@ if __name__ == '__main__':
 
     with st.sidebar:
         st.title("Covid-19 Forecast and Correlation Explorer")
-        st.subheader("Try each page below:")
+        st.subheader("Select a page below:")
         mode = st.radio("Menu", ['Population Immunity and Vaccination', 'Correlations Forecast',
                                  'Correlation Explorer', 'ARIMA Forecast'])
         st.subheader("Select a state or all US states:")
