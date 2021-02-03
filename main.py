@@ -635,6 +635,7 @@ def pop_immunity(df):
     st.title("When can we go back to normal?")
     st.subheader("Population Immunity and Vaccination Progress for the US")
 
+    df = df.bfill()
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
 
     # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
@@ -647,12 +648,10 @@ def pop_immunity(df):
 
     df['Remaining Population'] -= df['Cross Immunity']
     # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
-    df = df.bfill()
     df['Estimated Population Immunity %'] = (df['Cumulative Infections Estimate'] + df['Doses_Administered'] +df['Cross Immunity']) / df[
         'Census2019'] * 100
 
     st.area_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
-    st.line_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
     # st.area_chart(df['Estimated Population Immunity %'],height=100)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
