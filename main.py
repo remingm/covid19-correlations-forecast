@@ -157,7 +157,6 @@ def process_data(all_states, state):
     for vac_col in vaccine.columns.values:
         df[vac_col] = vaccine[vac_col]
     df.fillna(method='pad', inplace=True)
-    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
     # End Vaccination data
 
     if np.inf in df.values:
@@ -636,11 +635,13 @@ def pop_immunity(df):
     st.title("When can we go back to normal?")
     st.subheader("Population Immunity and Vaccination Progress for the US")
 
+    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
+
     # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
-    cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,20,step=5)
+    cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,0,step=5)
     if cross_immune != 0:
-        # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population']
-        df['Cross Immunity'] = cross_immune/100 * df['Census2019']
+        # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
+        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df['Doses_Administered']*(cross_immune/100)
     else:
         df['Cross Immunity'] = np.zeros(len(df))
 
@@ -651,6 +652,7 @@ def pop_immunity(df):
         'Census2019'] * 100
 
     st.area_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
+    st.line_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
     # st.area_chart(df['Estimated Population Immunity %'],height=100)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
@@ -660,7 +662,6 @@ def pop_immunity(df):
     # st.subheader("Herd Immunity Threshold: {}%".format(herd_thresh))
     # st.progress(herd_thresh/100)
 
-    # todo
     from scipy.signal import find_peaks
     peaks, _ = find_peaks(df['hospitalizedCurrently'])
     peak_date = df.index[peaks[-1]]
@@ -668,6 +669,7 @@ def pop_immunity(df):
 
     st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(peak_date._date_repr, round(found_thresh,2)))
     st.progress(found_thresh/100)
+    # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
 
     st.markdown(open("Immunity.md",'r').read())
 
