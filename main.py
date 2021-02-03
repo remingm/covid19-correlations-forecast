@@ -637,7 +637,7 @@ def pop_immunity(df):
     st.subheader("Population Immunity and Vaccination Progress for the US")
 
     # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
-    cross_immune = st.slider('Crossover Immunity (See below for more info)',20,50,0,step=5)
+    cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,20,step=5)
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population']
         df['Cross Immunity'] = cross_immune/100 * df['Census2019']
