@@ -25,7 +25,7 @@ import pmdarima, seaborn
 # todo states where cases and deaths are most and least correlated
 
 
-st.set_page_config(page_title='Interactive Covid-19 Forecast and Correlation Explorer', layout='centered',
+st.set_page_config(page_title='Interactive Covid-19 Forecast and Correlation Explorer', layout='wide',
                    initial_sidebar_state='expanded')
 
 
@@ -95,7 +95,7 @@ def process_data(all_states, state):
     df['deathIncrease'] = df['deathIncrease'].rolling(7).mean()
     df['hospitalizedCurrently'] = df['hospitalizedCurrently'].rolling(7).mean()
     df['totalTestResultsIncrease'] = df['totalTestResultsIncrease'].rolling(7).mean()
-    df['death'] = df['death'].rolling(7).mean()
+    # df['death'] = df['death'].rolling(7).mean()
 
     # New features
     df['percentPositive'] = (df['positiveIncrease'] / df['totalTestResultsIncrease']).rolling(7).mean()
@@ -105,6 +105,7 @@ def process_data(all_states, state):
 
     df['Infection Fatality Rate'] = (df['death'] / (df['positive'] * df['prevalence_ratio'])) * 100
     df['percentPositive'] = df['percentPositive'] * 100
+    df['Cumulative Infections Estimate'] = df['positive'] * df['prevalence_ratio'] - df['death']
 
     # Mobility data ------------------------------------------------------------------------------------------
     mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date',
@@ -135,26 +136,28 @@ def process_data(all_states, state):
     # End mobility data processing ---------------------------------------------------------------------------
 
     # Vaccination data
-    # vaccine = pd.read_csv('vaccine.csv')
-    # vaccine['Date'] = pd.to_datetime(vaccine['Date'], format='%Y-%m-%d')
-    # vaccine=vaccine.query('Date>="2020-03-01"')
-    # vaccine.set_index('Date', inplace=True)
-    #
-    # vac_col = 'doses_administered_daily_7day_avg'
-    # if all_states:
-    #     us_total = []
-    #     for s in states:
-    #         vac_state = vaccine.query('Location=="{}"'.format(s))
-    #         if len(us_total)==0: us_total = vac_state[vac_col]
-    #         else:
-    #             us_total += vac_state[vac_col]
-    #     vaccine = us_total
-    #
-    # else:
-    #     vaccine = vaccine.query('Location=="{}"'.format(state))[vac_col]
-    # # Fill empty dates
-    # df[vac_col] = vaccine
-    # df.fillna(method='pad')
+    vaccine = pd.read_csv('vaccine.csv')
+    vaccine['Date'] = pd.to_datetime(vaccine['Date'], format='%Y-%m-%d')
+    vaccine = vaccine.query('Date>="2020-03-01"')
+    vaccine.set_index('Date', inplace=True)
+
+    if all_states:
+        us_total = []
+        for s in states:
+            vac_state = vaccine.query('Location=="{}"'.format(s))
+            if len(us_total) == 0:
+                us_total = vac_state
+            else:
+                us_total += vac_state
+        vaccine = us_total
+
+    else:
+        vaccine = vaccine.query('Location=="{}"'.format(state))  # [vac_col]
+    # Fill empty dates
+    for vac_col in vaccine.columns.values:
+        df[vac_col] = vaccine[vac_col]
+    df.fillna(method='pad', inplace=True)
+    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
     # End Vaccination data
 
     if np.inf in df.values:
@@ -628,6 +631,73 @@ def tsne_plot():
     st.pyplot(fig)
 
 
+def pop_immunity(df):
+    # Population Immunity Threshold
+    st.title("When can we go back to normal?")
+    st.subheader("Population Immunity and Vaccination Progress for the US")
+
+    # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
+    cross_immune = st.slider('Crossover Immunity',10,50,0,step=5)
+    if cross_immune != 0:
+        # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population']
+        df['Cross Immunity'] = cross_immune/100 * df['Census2019']
+    else:
+        df['Cross Immunity'] = np.zeros(len(df))
+
+    df['Remaining Population'] -= df['Cross Immunity']
+    # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
+    df = df.bfill()
+
+    st.area_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
+    st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']])
+    df['Estimated Population Immunity %'] = (df['Cumulative Infections Estimate'] + df['Doses_Administered'] +df['Cross Immunity']) / df[
+        'Census2019'] * 100
+    st.area_chart(df['Estimated Population Immunity %'],height=200)
+
+    immune_pct = round(df['Estimated Population Immunity %'].iloc[-1],2)
+    st.subheader("Estimated Population Immunity: {}%".format(immune_pct))
+    st.progress(immune_pct/100)
+    # st.subheader("Herd Immunity Threshold: {}%".format(herd_thresh))
+    # st.progress(herd_thresh/100)
+
+    # todo
+    from scipy.signal import find_peaks
+    peaks, _ = find_peaks(df['hospitalizedCurrently'])
+    peak_date = df.index[peaks[-1]]
+    found_thresh = df['Estimated Population Immunity %'].iloc[peaks[-1]]
+
+    st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(peak_date._date_repr, round(found_thresh,2)))
+    st.progress(found_thresh/100)
+
+    st.markdown('''
+             ## When can we go back to normal?
+             When the herd immunity threshold is reached.
+             > Herd immunity occurs when a significant portion of a population becomes immune to an infectious disease, limiting further disease spread.
+             
+             > Herd immunity may be achieved either through infection and recovery or by vaccination. Herd immunity also protects those who are unable to be vaccinated, such as newborns and immunocompromised people, because the disease spread within the population is very limited. 
+             [Source](https://jamanetwork.com/journals/jama/fullarticle/2772168)
+             
+             
+             ## What is the threshold? 
+             This is debated among scientists.
+             
+             One factor that may drastically alter the herd immunity threshold (HIT) is pre-existing immunity from other coronaviruses like the common cold.
+             
+             According to the [British Medical Journal](https://www.bmj.com/content/370/bmj.m3563):
+             > At least six studies have reported T cell reactivity against SARS-CoV-2 in 20% to 50% of people with no known exposure to the virus...they are hard to dismiss, with several being published in *Cell* and *Nature*.
+             
+             >Another group led by Sunetra Gupta at the University of Oxford has arrived at similar conclusions of lower herd immunity thresholds by considering the issue of pre-existing immunity in the population. When a population has people with pre-existing immunity, as the T cell studies may be indicating is the case, the herd immunity threshold based on an R0 of 2.5 can be reduced from 60% of a population getting infected right down to 10%, depending on the quantity and distribution of pre-existing immunity among people, Gupta’s group calculated.
+             
+             Researchers believe the pre-existing immunity may come from the immune system's experience with other cornoviruses, such as the ones that cause the common cold.
+             >Importantly, we detected SARS-CoV-2-reactive CD4+ T cells in ∼40%–60% of unexposed individuals, suggesting cross-reactive T cell recognition between circulating “common cold” coronaviruses and SARS-CoV-2.
+             
+             https://www.cell.com/cell/fulltext/S0092-8674(20)30610-3 
+             
+             To factor in a population fraction that may have pre-existing immunity use the "Crossover Immunity" slider.
+             
+             ''')
+
+
 if __name__ == '__main__':
     # todo global cols lists. One for cors and one for UI
     cols = ['Infection Fatality Rate', 'positiveIncrease', 'deathIncrease', 'hospitalizedCurrently', 'inIcuCurrently',
@@ -636,7 +706,7 @@ if __name__ == '__main__':
         ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
          'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
-    # cols.append('doses_administered_daily_7day_avg')
+    # cols.extend(['doses_administered_daily_7day_avg',])
 
     download_data()
     w, h, = 900, 400
@@ -644,8 +714,9 @@ if __name__ == '__main__':
 
     with st.sidebar:
         st.title("Covid-19 Forecast and Correlation Explorer")
-        st.subheader("Try each mode below:")
-        mode = st.radio("Menu", ['Correlations Forecast', 'Correlation Explorer', 'ARIMA Forecast'])
+        st.subheader("Try each page below:")
+        mode = st.radio("Menu", ['Population Immunity and Vaccination', 'Correlations Forecast',
+                                 'Correlation Explorer', 'ARIMA Forecast'])
         st.subheader("Select a state or all US states:")
         all_states = st.checkbox("All States", True)
         state = st.selectbox("State", states, index=37)
@@ -697,12 +768,19 @@ if __name__ == '__main__':
     elif mode == 'ARIMA Forecast':
         arima_ui(df_arima, cols)
 
+    elif mode == 'Population Immunity and Vaccination':
+        pop_immunity(df)
+
     st.header("Sources and References")
     st.markdown(
-        "Infection fatality rate is calculated using the formula described by https://covid19-projections.com/estimating-true-infections-revisited:")
-    st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
+        '''
+        Data is pulled daily from https://covidtracking.com. 
+        Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/). 
+        Vaccination data is from the CDC and collected at https://github.com/youyanggu/covid19-cdc-vaccination-data
+        ''')
     st.markdown(
-        "Data is pulled daily from https://covidtracking.com. Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/)")
+        "Infection fatality rate and true infections are estimated using the formula described by https://covid19-projections.com/estimating-true-infections-revisited:")
+    st.latex("prevalenceRatio({day_{i}}) = (1250/(day_i+25)) * positivityRate^{0.5}+2")
 
     # st.markdown(
     #     '''
@@ -710,7 +788,8 @@ if __name__ == '__main__':
     #     The source code is at https://github.com/remingm/covid19-correlations-forecast
     #     '''
     # )
-    st.info("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
+    st.write("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
+    st.write("Disclaimer: This site was made by a data scientist, not an infectious disease expert.")
 
     # st.markdown(
     #     '''
