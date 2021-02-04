@@ -632,8 +632,9 @@ def tsne_plot():
 
 def pop_immunity(df):
     # Population Immunity Threshold
-    st.title("When can we go back to normal?")
-    st.subheader("Population Immunity and Vaccination Progress for the US")
+    # st.title("When can we go back to normal?")
+    # st.subheader("Population Immunity and Vaccination Progress for the US")
+    st.title("Population Immunity and Vaccination Progress for the US")
 
     df = df.bfill()
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
