@@ -105,7 +105,7 @@ def process_data(all_states, state):
 
     df['Infection Fatality Rate'] = (df['death'] / (df['positive'] * df['prevalence_ratio'])) * 100
     df['percentPositive'] = df['percentPositive'] * 100
-    df['Cumulative Infections Estimate'] = df['positive'] * df['prevalence_ratio'] - df['death']
+    df['Cumulative Recovered Infections Estimate'] = df['positive'] * df['prevalence_ratio'] - df['death']
 
     # Mobility data ------------------------------------------------------------------------------------------
     mobility_cols = ['country_region_code', 'country_region', 'sub_region_1', 'iso_3166_2_code', 'date',
@@ -637,22 +637,22 @@ def pop_immunity(df):
     st.title("Population Immunity and Vaccination Progress for the US")
 
     df = df.bfill()
-    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Infections Estimate'] + df['Doses_Administered'])
+    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df['Administered_Dose2'])
 
     # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
     cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,0,step=5)
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
-        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df['Doses_Administered']*(cross_immune/100)
+        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df['Administered_Dose2']*(cross_immune/100)
     else:
         df['Cross Immunity'] = np.zeros(len(df))
 
     df['Remaining Population'] -= df['Cross Immunity']
     # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
-    df['Estimated Population Immunity %'] = (df['Cumulative Infections Estimate'] + df['Doses_Administered'] +df['Cross Immunity']) / df[
+    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df['Administered_Dose2'] +df['Cross Immunity']) / df[
         'Census2019'] * 100
 
-    st.area_chart(df[['Remaining Population', 'Cumulative Infections Estimate', 'Doses_Administered','Cross Immunity']])
+    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', 'Administered_Dose2','Cross Immunity']])
     # st.area_chart(df['Estimated Population Immunity %'],height=100)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
