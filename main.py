@@ -374,8 +374,7 @@ def plot_forecast(lines, cors_table):
     """
     idx = pd.date_range(start=df.index[0], periods=len(lines[b]))
     df2 = pd.DataFrame(lines).set_index(idx)
-    st.line_chart(df2, width=800, height=400, use_container_width=False)
-    # st.line_chart(df2,use_container_width=True)
+    st.line_chart(df2,use_container_width=True)
     # plt.style.use('bmh')
     # st.write(df2.plot().get_figure())
 
