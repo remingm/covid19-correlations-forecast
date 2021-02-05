@@ -140,6 +140,7 @@ def process_data(all_states, state):
     vaccine['Date'] = pd.to_datetime(vaccine['Date'], format='%Y-%m-%d')
     vaccine = vaccine.query('Date>="2020-03-01"')
     vaccine.set_index('Date', inplace=True)
+    # vaccine = vaccine.fillna(0)
 
     if all_states:
         us_total = []
@@ -156,7 +157,15 @@ def process_data(all_states, state):
     # Fill empty dates
     for vac_col in vaccine.columns.values:
         df[vac_col] = vaccine[vac_col]
-    df.fillna(method='pad', inplace=True)
+
+    # Fill missing
+    # df.fillna(method='pad', inplace=True)
+    df = df.interpolate(limit_direction='forward')
+    df['Administered_Dose2'] = df['Administered_Dose2'].fillna(0)
+    df['Administered_Dose1'] = df['Administered_Dose1'].fillna(0)
+    # df['administered_dose2_adj'] = df['administered_dose2_adj'].fillna(0)
+    # df['administered_dose1_adj'] = df['administered_dose1_adj'].fillna(0)
+    df = df.bfill()
     # End Vaccination data
 
     if np.inf in df.values:
@@ -634,24 +643,25 @@ def pop_immunity(df):
     # st.title("When can we go back to normal?")
     # st.subheader("Population Immunity and Vaccination Progress for the US")
     st.title("Population Immunity and Vaccination Progress for the US")
+    vac_col = 'Administered_Dose2'
+    # vac_col = 'administered_dose2_adj'
 
-    df = df.bfill()
-    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df['Administered_Dose2'])
+    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
     # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
     cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,0,step=5)
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
-        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df['Administered_Dose2']*(cross_immune/100)
+        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df[vac_col]*(cross_immune/100)
     else:
         df['Cross Immunity'] = np.zeros(len(df))
 
     df['Remaining Population'] -= df['Cross Immunity']
     # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
-    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df['Administered_Dose2'] +df['Cross Immunity']) / df[
+    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df[vac_col] +df['Cross Immunity']) / df[
         'Census2019'] * 100
 
-    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', 'Administered_Dose2','Cross Immunity']])
+    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col,'Cross Immunity']])
     # st.area_chart(df['Estimated Population Immunity %'],height=100)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
