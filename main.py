@@ -20,6 +20,7 @@ from sktime.utils.plotting import plot_series
 from sktime.forecasting.model_selection import temporal_train_test_split
 # sktime soft dependencies
 import pmdarima, seaborn
+from scipy.signal import find_peaks
 
 # todo prevalence ratio to calc true infections. Then calc asymptomatic and infectious
 # todo states where cases and deaths are most and least correlated
@@ -648,7 +649,6 @@ def pop_immunity(df):
 
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
-    # herd_thresh = st.slider('Herd Immunity Threshold ',0,100,70,step=5)
     cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,0,step=5)
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
@@ -662,16 +662,13 @@ def pop_immunity(df):
         'Census2019'] * 100
 
     st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col,'Cross Immunity']])
-    # st.area_chart(df['Estimated Population Immunity %'],height=100)
+    st.area_chart(df['Estimated Population Immunity %'],height=80)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
 
     immune_pct = round(df['Estimated Population Immunity %'].iloc[-1],2)
     st.subheader("Estimated Population Immunity: {}%".format(immune_pct))
     st.progress(immune_pct/100)
-    # st.subheader("Herd Immunity Threshold: {}%".format(herd_thresh))
-    # st.progress(herd_thresh/100)
 
-    from scipy.signal import find_peaks
     peaks, _ = find_peaks(df['hospitalizedCurrently'])
     peak_date = df.index[peaks[-1]]
     found_thresh = df['Estimated Population Immunity %'].iloc[peaks[-1]]

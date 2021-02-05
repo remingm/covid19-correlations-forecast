@@ -4,7 +4,7 @@
 
 - Herd immunity may be achieved either through infection and recovery or by vaccination. [[1](https://jamanetwork.com/journals/jama/fullarticle/2772168)]
 
-- At least six studies have reported T cell reactivity against SARS-CoV-2 in 20% to 50% of people with no known exposure to the virus. Several of these studies were published in the prestigious *Cell* and *Nature* journals. [[2](https://www.bmj.com/content/370/bmj.m3563)] [[3](https://www.cell.com/cell/fulltext/S0092-8674(20)30610-3)]
+- At least six studies have reported T cell reactivity against SARS-CoV-2 in 20% to 50% of people with no known exposure to the virus. Several studies were published in the prestigious *Cell* and *Nature* journals. [[2](https://www.bmj.com/content/370/bmj.m3563)] [[3](https://www.cell.com/cell/fulltext/S0092-8674(20)30610-3)]
 
 - When a population has people with pre-existing immunity, as the T cell studies may be indicating is the case, the herd immunity threshold based on an R0 of 2.5 can be reduced from 60% of a population getting infected right down to 10%. [[2](https://www.bmj.com/content/370/bmj.m3563)]
 
