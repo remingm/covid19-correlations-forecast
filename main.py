@@ -39,10 +39,12 @@ def download_data():
     # shutil.copy("daily.csv",data_dir)
     # os.path.join(data_dir,'daily.csv')
 
-    last_mod = os.path.getmtime('daily.csv')
+    filepath = 'vaccine.csv' #'daily.csv'
+
+    last_mod = os.path.getmtime(filepath)
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
     dif = datetime.datetime.now() - last_mod
-    if dif < datetime.timedelta(hours=12) and os.path.exists('Region_Mobility_Report_CSVs'): return
+    if dif < datetime.timedelta(hours=6) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
     # Clear cache if we have new data
     st.caching.clear_cache()
