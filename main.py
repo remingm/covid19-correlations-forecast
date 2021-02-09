@@ -44,6 +44,9 @@ def download_data():
     dif = datetime.datetime.now() - last_mod
     if dif < datetime.timedelta(hours=12) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
+    # Clear cache if we have new data
+    st.caching.clear_cache()
+
     with st.spinner("Fetching latest data..."):
         os.remove('daily.csv')
         os.remove('states_daily.csv')
@@ -67,8 +70,6 @@ def download_data():
             'https://raw.githubusercontent.com/youyanggu/covid19-cdc-vaccination-data/main/aggregated_adjusted.csv',
             'vaccine.csv')
 
-    # Clear cache if we have new data
-    st.caching.clear_cache()
 
 
 @st.cache(suppress_st_warning=True)
