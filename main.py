@@ -71,7 +71,6 @@ def download_data():
             'vaccine.csv')
 
 
-
 @st.cache(suppress_st_warning=True)
 def process_data(all_states, state):
     """
@@ -385,7 +384,7 @@ def plot_forecast(lines, cors_table):
     """
     idx = pd.date_range(start=df.index[0], periods=len(lines[b]))
     df2 = pd.DataFrame(lines).set_index(idx)
-    st.line_chart(df2,use_container_width=True)
+    st.line_chart(df2, use_container_width=True)
     # plt.style.use('bmh')
     # st.write(df2.plot().get_figure())
 
@@ -465,13 +464,13 @@ def sktime_plot(series, labels, pred_ints, alpha):
         st.pyplot(fig)
 
 
-def arima_ui(df, cols):
+def arima_ui(df, cols,default=3,max_len=20):
     st.title("ARIMA Forecast")
     st.write(
-        "This forecast uses an entirely different method called [ARIMA](https://www.reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/gf5a9ub?utm_source=share&utm_medium=web2x&context=3).")
-    length = st.slider("Forecast length", 1, 20, value=14)
+        "This forecast uses a method called [ARIMA](https://www.reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/gf5a9ub?utm_source=share&utm_medium=web2x&context=3).")
+    length = st.slider("Forecast length", 1, max_len, value=14)
 
-    b = st.selectbox("Forecast this:", cols, index=3)
+    b = st.selectbox("Forecast this:", cols, index=default)
     timeseries_forecast(df, b, length)
 
 
@@ -642,43 +641,49 @@ def tsne_plot():
 
 def pop_immunity(df):
     # Population Immunity Threshold
-    # st.title("When can we go back to normal?")
-    # st.subheader("Population Immunity and Vaccination Progress for the US")
-    st.title("Population Immunity and Vaccination Progress for the US")
+    st.markdown("# Population Immunity and Vaccination Progress for the US")
+    # st.markdown("### Tracking The Return To Normal")
     vac_col = 'Administered_Dose2'
+    # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
     # vac_col = 'administered_dose2_adj'
 
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
-    cross_immune = st.slider('Cross Immunity (See below for more info)',0,50,0,step=5)
+    cross_immune = st.slider('Cross Immunity (See below for more info)', 0, 50, 0, step=5)
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
-        df['Cross Immunity'] = cross_immune/100 * df['Census2019'] - df[vac_col]*(cross_immune/100)
+        df['Cross Immunity'] = cross_immune / 100 * df['Census2019'] - df[vac_col] * (cross_immune / 100)
     else:
         df['Cross Immunity'] = np.zeros(len(df))
 
     df['Remaining Population'] -= df['Cross Immunity']
     # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
-    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df[vac_col] +df['Cross Immunity']) / df[
-        'Census2019'] * 100
+    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df[vac_col] + df[
+        'Cross Immunity']) / df[
+                                                'Census2019'] * 100
 
-    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col,'Cross Immunity']])
-    st.area_chart(df['Estimated Population Immunity %'],height=80)
-    st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']],height=200)
+    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col, 'Cross Immunity']])
+    st.area_chart(df['Estimated Population Immunity %'], height=80)
+    st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']], height=200)
 
-    immune_pct = round(df['Estimated Population Immunity %'].iloc[-1],2)
+    immune_pct = round(df['Estimated Population Immunity %'].iloc[-1], 2)
     st.subheader("Estimated Population Immunity: {}%".format(immune_pct))
-    st.progress(immune_pct/100)
+    st.progress(immune_pct / 100)
 
-    peaks, _ = find_peaks(df['hospitalizedCurrently'])
+    peaks, _ = find_peaks(df['hospitalizedCurrently']) # todo winter 2020/2021 only
     peak_date = df.index[peaks[-1]]
     found_thresh = df['Estimated Population Immunity %'].iloc[peaks[-1]]
 
-    st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(peak_date._date_repr, round(found_thresh,2)))
-    st.progress(found_thresh/100)
+    st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(
+        peak_date._date_repr, round(found_thresh, 2)))
+    st.progress(found_thresh / 100)
     # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
 
-    st.markdown(open("Immunity.md",'r').read())
+    # Forecast Immnuity
+    # arima_ui(df,['Estimated Population Immunity %'],0,90)
+
+
+    st.markdown(open("Immunity.md", 'r').read())
 
 
 if __name__ == '__main__':
@@ -696,14 +701,14 @@ if __name__ == '__main__':
     states = pd.read_csv('states_daily.csv')['state'].unique()
 
     with st.sidebar:
-        st.title("Covid-19 Forecast and Correlation Explorer")
+        st.title("Covid-19 Data Explorer")
         st.subheader("Select a page below:")
         mode = st.radio("Menu", ['Population Immunity and Vaccination', 'Correlations Forecast',
                                  'Correlation Explorer', 'ARIMA Forecast'])
         st.subheader("Select a state or all US states:")
-        all_states = st.checkbox("All States", True)
+        all_states = st.checkbox("All US States", True)
         state = st.selectbox("State", states, index=37)
-        st.write(":computer: [Source Code On Github](https://github.com/remingm/covid19-correlations-forecast)")
+        # st.write(":computer: [Source Code On Github](https://github.com/remingm/covid19-correlations-forecast)")
 
     # st.title("Interactive Covid-19 Forecast and Correlation Explorer")
 
@@ -773,6 +778,7 @@ if __name__ == '__main__':
     # )
     st.write("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
     st.write("Disclaimer: This site was made by a data scientist, not an infectious disease expert.")
+    st.markdown("Created by [Michael Remington](http://www.michael-remington.com).")
 
     # st.markdown(
     #     '''
