@@ -16,7 +16,8 @@
 
 - Another research group calculates the threshold at 10% to 20% when accounting for population mixing and other factors. [[2](https://www.bmj.com/content/370/bmj.m3563)]
 
-- #### References
+### References
+
 1. [What Is Herd Immunity? | Infectious Diseases | JAMA | JAMA Network](https://jamanetwork.com/journals/jama/fullarticle/2772168)
 
 2. [Covid-19: Do many people have pre-existing immunity? | The BMJ](https://www.bmj.com/content/370/bmj.m3563)

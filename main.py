@@ -786,9 +786,9 @@ if __name__ == '__main__':
     elif mode == 'Population Immunity and Vaccination':
         pop_immunity(df)
 
-    st.header("Sources and References")
     st.markdown(
         '''
+        ### Sources 
         Data is pulled daily from https://covidtracking.com. 
         Mobility data is from [google.com/covid19/mobility](https://www.google.com/covid19/mobility/). 
         Vaccination data is from the CDC and collected at https://github.com/youyanggu/covid19-cdc-vaccination-data
@@ -797,15 +797,9 @@ if __name__ == '__main__':
         "Infection fatality rate and true infections are estimated using the formula described by https://covid19-projections.com/estimating-true-infections-revisited:")
     st.latex("prevalenceRatio({day_{i}}) = (1500/(day_i+50)) * positivityRate^{0.5}+2")
 
-    # st.markdown(
-    #     '''
-    #     ## Source Code
-    #     The source code is at https://github.com/remingm/covid19-correlations-forecast
-    #     '''
-    # )
     st.write("See this app's source code at https://github.com/remingm/covid19-correlations-forecast")
-    st.write("Disclaimer: This site was made by a data scientist, not an infectious disease expert.")
     st.markdown("Created by [Michael Remington](http://www.michael-remington.com).")
+    st.write("Disclaimer: This site was made by a data scientist, not an infectious disease expert.")
 
     # st.markdown(
     #     '''
