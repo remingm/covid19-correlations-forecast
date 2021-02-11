@@ -6,18 +6,17 @@
 
 - Herd immunity also protects those who are unable to be vaccinated, such as newborns and immunocompromised people, because the disease spread within the population is very limited. [[1](https://jamanetwork.com/journals/jama/fullarticle/2772168)]
 
-- Though one dose may offer some immunity, only the second vaccine dose is counted in the above visualizations.
-
 - To see data for a specific state use the selector on the sidebar.
 
 ## How much of the population needs immunity?
 
 - The herd immunity threshold is debated among scientists. The commonly accepted herd immunity threshold for SARS-CoV-2 is 60-80%. [[2](https://www.bmj.com/content/370/bmj.m3563)] [[3](https://ccdd.hsph.harvard.edu/2020/12/17/covid-19-vaccines-and-herd-immunity/)]
-- A research group at the University of Oxford estimates the threshold at 10% to 60%. [[2](https://www.bmj.com/content/370/bmj.m3563)]
-- Another research group calculates the threshold at 10% to 20% when taking into account population mixing among other factors. [[2](https://www.bmj.com/content/370/bmj.m3563)]
 
-#### References
+- A research group at the University of Oxford estimates the threshold at 10% to 60% when accounting for T cell immunity studies. [[2](https://www.bmj.com/content/370/bmj.m3563)]
 
+- Another research group calculates the threshold at 10% to 20% when accounting for population mixing and other factors. [[2](https://www.bmj.com/content/370/bmj.m3563)]
+
+- #### References
 1. [What Is Herd Immunity? | Infectious Diseases | JAMA | JAMA Network](https://jamanetwork.com/journals/jama/fullarticle/2772168)
 
 2. [Covid-19: Do many people have pre-existing immunity? | The BMJ](https://www.bmj.com/content/370/bmj.m3563)

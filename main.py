@@ -39,7 +39,7 @@ def download_data():
     # shutil.copy("daily.csv",data_dir)
     # os.path.join(data_dir,'daily.csv')
 
-    filepath = 'vaccine.csv' #'daily.csv'
+    filepath = 'vaccine.csv'  # 'daily.csv'
 
     last_mod = os.path.getmtime(filepath)
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
@@ -167,7 +167,7 @@ def process_data(all_states, state):
     df['Administered_Dose2'] = df['Administered_Dose2'].fillna(0)
     df['Administered_Dose1'] = df['Administered_Dose1'].fillna(0)
     # df['administered_dose2_adj'] = df['administered_dose2_adj'].fillna(0)
-    # df['administered_dose1_adj'] = df['administered_dose1_adj'].fillna(0)
+    df['administered_dose1_adj'] = df['administered_dose1_adj'].fillna(0)
     df = df.bfill()
     # End Vaccination data
 
@@ -467,7 +467,7 @@ def sktime_plot(series, labels, pred_ints, alpha):
         st.pyplot(fig)
 
 
-def arima_ui(df, cols,default=3,max_len=20):
+def arima_ui(df, cols, default=3, max_len=20):
     st.title("ARIMA Forecast")
     st.write(
         "This forecast uses a method called [ARIMA](https://www.reddit.com/r/statistics/comments/k9m9wy/question_arima_in_laymans_terms/gf5a9ub?utm_source=share&utm_medium=web2x&context=3).")
@@ -646,48 +646,68 @@ def pop_immunity(df):
     # Population Immunity Threshold
     st.markdown("# Population Immunity and Vaccination Progress for the US")
     # st.markdown("### Tracking The Return To Normal")
-    vac_col = 'Administered_Dose2'
+    vac_col = 'administered_dose1_adj'  # 'Administered_Dose1'
     # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
     # vac_col = 'administered_dose2_adj'
 
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
-    # cross_immune = st.slider('Cross Immunity (See below for more info)', 0, 50, 0, step=5)
+    # Recovered infections can get vaccinated
+    # df['Cumulative Recovered Infections Estimate'] -= df[vac_col] / 2
+    # df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
+
+    # T cell crossover immunity
     cross_immune = 0
+    # cross_immune = st.slider('Cross Immunity (See below for more info)', 0, 50, 0, step=5)
     if cross_immune != 0:
-        # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
         df['Cross Immunity'] = cross_immune / 100 * df['Census2019'] - df[vac_col] * (cross_immune / 100)
     else:
         df['Cross Immunity'] = np.zeros(len(df))
-
     df['Remaining Population'] -= df['Cross Immunity']
-    # df['Remaining Population'] = df['Remaining Population']* (herd_thresh/100) # todo not working
-    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df[vac_col] + df[
-        'Cross Immunity']) / df[
-                                                'Census2019'] * 100
 
+    df['Estimated Population Immunity %'] = (df['Cumulative Recovered Infections Estimate'] + df[vac_col] + df[
+        'Cross Immunity']) / df['Census2019'] * 100
+
+    immune_progress_bar(df, vac_col)
     st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col, ]])
     st.area_chart(df['Estimated Population Immunity %'], height=80)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']], height=200)
-
-    immune_pct = round(df['Estimated Population Immunity %'].iloc[-1], 2)
-    st.subheader("Estimated Population Immunity: {}%".format(immune_pct))
-    st.progress(immune_pct / 100)
-
-    peaks, _ = find_peaks(df['hospitalizedCurrently']) # todo winter 2020/2021 only
-    peak_date = df.index[peaks[-1]]
-    found_thresh = df['Estimated Population Immunity %'].iloc[peaks[-1]]
-
-    st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(
-        peak_date._date_repr, round(found_thresh, 2)))
-    st.progress(found_thresh / 100)
-    # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
+    last_peak_progress_bar(df)
 
     # Forecast Immnuity
     # arima_ui(df,['Estimated Population Immunity %'],0,90)
 
-
     st.markdown(open("Immunity.md", 'r').read())
+
+
+def immune_progress_bar(df, vac_col):
+    # Progress bar - pop immune
+    immune_pct = round(df['Estimated Population Immunity %'].iloc[-1], 2)
+    st.subheader("Estimated Population Immunity: {}%".format(immune_pct))
+    st.progress(immune_pct / 100)
+
+    # recovered = df['Cumulative Recovered Infections Estimate'].iloc[-1] / df['Census2019'] * 100
+    # recovered = round(recovered.iloc[-1], 2)
+    # st.subheader("Estimated Population Immunity from Recovered Infections: {}%".format(recovered))
+    # st.progress(recovered / 100)
+    #
+    # recovered = df[vac_col].iloc[-1] / df['Census2019'] * 100
+    # recovered = round(recovered.iloc[-1], 2)
+    # st.subheader("Estimated Population Immunity from Vaccinations (1st Dose): {}%".format(recovered))
+    # st.progress(recovered / 100)
+
+
+def last_peak_progress_bar(df):
+    # Find immunity at last peak
+    peaks, _ = find_peaks(df['hospitalizedCurrently'])  # todo winter 2020/2021 only
+    peak_date = df.index[peaks[-1]]
+    found_thresh = df['Estimated Population Immunity %'].iloc[peaks[-1]]
+
+    # Progress bar - estimate
+    st.subheader('Hospitalizations began to decline after {} when the estimated population immunity was {}%.'.format(
+        peak_date._date_repr, round(found_thresh, 2)))
+    st.progress(found_thresh / 100)
+    # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
 
 
 if __name__ == '__main__':
