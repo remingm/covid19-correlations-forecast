@@ -652,7 +652,8 @@ def pop_immunity(df):
 
     df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
-    cross_immune = st.slider('Cross Immunity (See below for more info)', 0, 50, 0, step=5)
+    # cross_immune = st.slider('Cross Immunity (See below for more info)', 0, 50, 0, step=5)
+    cross_immune = 0
     if cross_immune != 0:
         # df['Cross Immunity'] = cross_immune/100 * df['Remaining Population'] - df['Doses_Administered']
         df['Cross Immunity'] = cross_immune / 100 * df['Census2019'] - df[vac_col] * (cross_immune / 100)
@@ -665,7 +666,7 @@ def pop_immunity(df):
         'Cross Immunity']) / df[
                                                 'Census2019'] * 100
 
-    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col, 'Cross Immunity']])
+    st.area_chart(df[['Remaining Population', 'Cumulative Recovered Infections Estimate', vac_col, ]])
     st.area_chart(df['Estimated Population Immunity %'], height=80)
     st.line_chart(df[['positiveIncrease', 'hospitalizedCurrently']], height=200)
 
