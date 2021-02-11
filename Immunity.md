@@ -10,11 +10,13 @@
 
 ## How much of the population needs immunity?
 
-- The herd immunity threshold is debated among scientists. The commonly accepted herd immunity threshold for SARS-CoV-2 is 60-80%. [[2](https://www.bmj.com/content/370/bmj.m3563)] [[3](https://ccdd.hsph.harvard.edu/2020/12/17/covid-19-vaccines-and-herd-immunity/)]
+- The herd immunity threshold (HIT) is debated among scientists. The commonly accepted herd immunity threshold for SARS-CoV-2 is 60-80%. [[2](https://www.bmj.com/content/370/bmj.m3563)] [[3](https://ccdd.hsph.harvard.edu/2020/12/17/covid-19-vaccines-and-herd-immunity/)]
 
 - A research group at the University of Oxford estimates the threshold at 10% to 60% when accounting for T cell immunity studies. [[2](https://www.bmj.com/content/370/bmj.m3563)]
 
-- Another research group calculates the threshold at 10% to 20% when accounting for population mixing and other factors. [[2](https://www.bmj.com/content/370/bmj.m3563)]
+- Another research group calculates the threshold at 10% to 20% when accounting for diversity in population mixing. [[2](https://www.bmj.com/content/370/bmj.m3563)]
+
+- Infections, hospitalizations, and related metrics may decline as population immunity rises, even if the HIT is not reached. [[3](https://ccdd.hsph.harvard.edu/2020/12/17/covid-19-vaccines-and-herd-immunity/)]
 
 ### References
 
