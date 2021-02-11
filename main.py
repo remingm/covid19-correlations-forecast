@@ -167,7 +167,7 @@ def process_data(all_states, state):
     df['Administered_Dose2'] = df['Administered_Dose2'].fillna(0)
     df['Administered_Dose1'] = df['Administered_Dose1'].fillna(0)
     # df['administered_dose2_adj'] = df['administered_dose2_adj'].fillna(0)
-    df['administered_dose1_adj'] = df['administered_dose1_adj'].fillna(0)
+    df['First Doses Administered'] = df['administered_dose1_adj'].fillna(0)
     df = df.bfill()
     # End Vaccination data
 
@@ -646,15 +646,18 @@ def pop_immunity(df):
     # Population Immunity Threshold
     st.markdown("# Population Immunity and Vaccination Progress for the US")
     # st.markdown("### Tracking The Return To Normal")
-    vac_col = 'administered_dose1_adj'  # 'Administered_Dose1'
+    vac_col = 'First Doses Administered'  # 'Administered_Dose1'
     # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
     # vac_col = 'administered_dose2_adj'
 
-    df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
+    recovered_frac  = st.slider("Fraction of vaccinations that go to recovered infections:",0.,.5,.2)
+    if recovered_frac:
+        # Recovered infections can get vaccinated
+        df['Cumulative Recovered Infections Estimate'] -= df[vac_col] *recovered_frac
+        df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
+    else:
+        df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
-    # Recovered infections can get vaccinated
-    # df['Cumulative Recovered Infections Estimate'] -= df[vac_col] / 2
-    # df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
 
     # T cell crossover immunity
     cross_immune = 0
