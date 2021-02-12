@@ -39,12 +39,15 @@ def download_data():
     # shutil.copy("daily.csv",data_dir)
     # os.path.join(data_dir,'daily.csv')
 
-    filepath = 'vaccine.csv'  # 'daily.csv'
+    # Download new data when last mod time was > x hours
+    # filepath = 'vaccine.csv'  # 'daily.csv'
+    # last_mod = os.path.getmtime(filepath)
+    # last_mod = datetime.datetime.utcfromtimestamp(last_mod)
+    # dif = datetime.datetime.now() - last_mod
+    # if dif < datetime.timedelta(hours=6) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
-    last_mod = os.path.getmtime(filepath)
-    last_mod = datetime.datetime.utcfromtimestamp(last_mod)
-    dif = datetime.datetime.now() - last_mod
-    if dif < datetime.timedelta(hours=6) and os.path.exists('Region_Mobility_Report_CSVs'): return
+    # Download new data every x hours
+    if datetime.datetime.utcnow().hour % 3 != 0 and os.path.exists('Region_Mobility_Report_CSVs'): return
 
     # Clear cache if we have new data
     st.caching.clear_cache()
@@ -68,6 +71,7 @@ def download_data():
         os.remove('Region_Mobility_Report_CSVs.zip')
 
     with st.spinner("Downloading vaccination data..."):
+        os.remove("vaccine.csv")
         urllib.request.urlretrieve(
             'https://raw.githubusercontent.com/youyanggu/covid19-cdc-vaccination-data/main/aggregated_adjusted.csv',
             'vaccine.csv')
@@ -650,14 +654,13 @@ def pop_immunity(df):
     # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
     # vac_col = 'administered_dose2_adj'
 
-    recovered_frac  = st.slider("Fraction of vaccinations that go to recovered infections:",0.,.5,.2)
+    recovered_frac = st.slider("Fraction of vaccinations that go to recovered infections:", 0., .5, .2)
     if recovered_frac:
         # Recovered infections can get vaccinated
-        df['Cumulative Recovered Infections Estimate'] -= df[vac_col] *recovered_frac
+        df['Cumulative Recovered Infections Estimate'] -= df[vac_col] * recovered_frac
         df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
     else:
         df['Remaining Population'] = df['Census2019'] - (df['Cumulative Recovered Infections Estimate'] + df[vac_col])
-
 
     # T cell crossover immunity
     cross_immune = 0
