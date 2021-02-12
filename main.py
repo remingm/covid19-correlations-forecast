@@ -68,6 +68,7 @@ def download_data():
         os.remove('Region_Mobility_Report_CSVs.zip')
 
     with st.spinner("Downloading vaccination data..."):
+        os.remove('vaccine.csv')
         urllib.request.urlretrieve(
             'https://raw.githubusercontent.com/youyanggu/covid19-cdc-vaccination-data/main/aggregated_adjusted.csv',
             'vaccine.csv')
