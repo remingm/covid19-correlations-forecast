@@ -30,7 +30,7 @@ st.set_page_config(page_title='Interactive Covid-19 Forecast and Correlation Exp
                    initial_sidebar_state='expanded')
 
 
-def download_data():
+def download_data(wait_hours=6):
     """
     Periodically download data to csv
     """
@@ -44,7 +44,7 @@ def download_data():
     last_mod = os.path.getmtime(filepath)
     last_mod = datetime.datetime.utcfromtimestamp(last_mod)
     dif = datetime.datetime.now() - last_mod
-    if dif < datetime.timedelta(hours=3) and os.path.exists('Region_Mobility_Report_CSVs'): return
+    if dif < datetime.timedelta(hours=wait_hours) and os.path.exists('Region_Mobility_Report_CSVs'): return
 
     # Clear cache if we have new data
     st.caching.clear_cache()
@@ -723,7 +723,7 @@ if __name__ == '__main__':
          'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
     # cols.extend(['doses_administered_daily_7day_avg',])
 
-    download_data()
+    download_data(wait_hours=4)
     w, h, = 900, 400
     states = pd.read_csv('states_daily.csv')['state'].unique()
 
