@@ -478,171 +478,6 @@ def arima_ui(df, cols, default=3, max_len=20):
     timeseries_forecast(df, b, length)
 
 
-def rename_columns(df):
-    # todo
-    col_map = {'inIcuCurrently': 'Currently in ICU', 'hospitalizedCurrently': 'Currently Hospitalized',
-               'deathIncrease': 'Daily Deaths', 'positiveIncrease': 'Daily Positive Tests',
-               'percentPositive': 'Percent of Tests Positive',
-               'totalTestResultsIncrease': 'Daily Tests'}
-    mobility_cols = {'retail_and_recreation_percent_change_from_baseline': 'Retail/Recreation Mobility',
-                     'grocery_and_pharmacy_percent_change_from_baseline': 'Grocery/Pharmacy Mobility',
-                     'parks_percent_change_from_baseline': 'Parks Mobility',
-                     'transit_stations_percent_change_from_baseline': 'Transit Stations Mobility',
-                     'workplaces_percent_change_from_baseline': "Workplaces Mobility",
-                     'residential_percent_change_from_baseline': 'Residential Mobility'}
-    df = df.rename(col_map)
-    df = df.rename(mobility_cols)
-
-    cols = list(df.columns)
-    cols.extend(['Case Fatality Rate', 'Infection Fatality Rate'])
-    return df, cols
-
-
-# Unused functions below. May use in future. ---------------------------------------------------------------------------
-
-
-@st.cache()
-def ml_regression(X, y, lookahead=7):
-    """
-    Feed correlated and shifted variables into ML model for forecasting.
-    Doesn't seem to do better than weighted average forecast.
-
-    :param X: Correlation table. df[cols]
-    :param y: Target series. df[b]
-    :param lookahead: Forecast this many days ahead.
-    :return: Forecasted series.
-    """
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-    from sklearn.model_selection import train_test_split
-    y_shift = y.shift(lookahead)
-    X.fillna(0, inplace=True)
-    y_shift.fillna(0, inplace=True)
-    # X.interpolate(inplace=True, limit_direction='both')
-    # y.interpolate(inplace=True, limit_direction='both')
-    X = normalize(X)
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y_shift, random_state=0, shuffle=False)
-    reg = GradientBoostingRegressor(random_state=0, verbose=True)
-    # reg = RandomForestRegressor(random_state=0, verbose=True)
-    reg.fit(X_train, y_train)
-
-    pred = reg.predict(X_test)
-
-    score = reg.score(X_test, y_test)
-    reg.fit(X, y_shift)
-
-    # sktime
-    y.fillna(0, inplace=True)
-    y_train, y_test = temporal_train_test_split(y, test_size=14)
-    fh = ForecastingHorizon(y_test.index, is_relative=False)
-    forecaster = ReducedRegressionForecaster(
-        regressor=reg, window_length=12, strategy="recursive"
-    )
-    forecaster.fit(y_train)
-    y_pred = forecaster.predict(fh)
-    fig, ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
-    st.write(fig)
-    smape_loss(y_test, y_pred)
-
-    return reg.predict(X)
-
-
-def matplotlib_charts(df, a='deathIncrease', b='positiveIncrease'):
-    plt.style.use('seaborn')
-    st.pyplot(df[[a, b]].plot.line().get_figure())
-    # st.pyplot(df[[a,b]].plot(subplots=True,layout=(2,2)))
-    plots = df[[a, b, 'percentPositive', 'hospitalizedCurrently']].plot.line(subplots=True)
-    st.pyplot(plots[0].get_figure())
-
-    # plt.style.use('fivethirtyeight')
-    plots = df[[a, b, 'percentPositive', 'hospitalizedCurrently']].plot(subplots=True, layout=(2, 2))
-    st.pyplot(plots[0][0].get_figure())
-
-
-def get_correlations(df, cols):
-    st.header("Correlations")
-    df = df[cols]
-    cor_table = df.corr(method='pearson', min_periods=30)
-    st.write(cor_table)
-    max_r = 0
-    max_idx = None
-    seen = []
-    cors = pd.DataFrame(columns=['a', 'b', 'r'])
-    for i in cor_table.index:
-        for j in cor_table.index:
-            if i == j or i == 'index' or j == 'index': continue
-            if cor_table.loc[i, j] == 1: continue
-            if cor_table.loc[i, j] > max_r:
-                max_idx = (i, j)
-                max_r = max(cor_table.loc[i, j], max_r)
-            if (j, i) not in seen:
-                cors = cors.append({'a': i, 'b': j, 'r': cor_table.loc[i, j]}, ignore_index=True)
-                seen.append((i, j))
-    st.write(max_idx, max_r)
-    st.write(cors.sort_values('r', ascending=False).reset_index(drop=True))
-
-
-def tsne_plot():
-    """
-    Experiments with dimensionality reduction and clustering time series to find similarities in US states.
-    # todo normalize all timeseries for each state and then cluster and tsne.
-    """
-    from sklearn.decomposition import PCA, KernelPCA
-    from sklearn.pipeline import make_pipeline
-    from sklearn.manifold import TSNE
-    from sklearn.cluster import OPTICS, MeanShift
-    tsne = TSNE()
-    cols = ['inIcuCurrently', 'hospitalizedCurrently', 'deathIncrease', 'positiveIncrease', 'percentPositive',
-            'totalTestResultsIncrease', 'Case Fatality Rate', 'Infection Fatality Rate']
-    cols.extend(
-        ['retail_and_recreation_percent_change_from_baseline', 'grocery_and_pharmacy_percent_change_from_baseline',
-         'parks_percent_change_from_baseline', 'transit_stations_percent_change_from_baseline',
-         'workplaces_percent_change_from_baseline', 'residential_percent_change_from_baseline'])
-    states = pd.read_csv('states_daily.csv')['state'].unique()[:]
-    states_data = {}
-    for state in states:
-        with st.spinner("Processing " + state):
-            df = process_data(False, state)
-            states_data[state] = df[cols].fillna(0)[-250:]
-            # states_data[state] = normalize(states_data[state])
-
-    state = st.selectbox("state", states)
-    st.write(states_data[state])
-    # for col in states_data[state].columns:
-    #     st.area_chart(states_data[state][col])
-
-    # df = pd.DataFrame(states_data.values(), index=states_data.keys())
-    X_valid_2D = tsne.fit_transform(states_data[state])
-    X_valid_2D = (X_valid_2D - X_valid_2D.min()) / (X_valid_2D.max() - X_valid_2D.min())
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots()
-    ax.scatter(X_valid_2D[:, 0], X_valid_2D[:, 1], s=10)
-    st.pyplot(fig)
-
-    # PCA
-    reduced = {}
-    for state in states:
-        pca = PCA(n_components=1)
-        X_valid_1D = pca.fit_transform(states_data[state])
-        X_valid_1D = (X_valid_1D - X_valid_1D.min()) / (X_valid_1D.max() - X_valid_1D.min())
-        reduced[state] = [i[0] for i in X_valid_1D]
-
-    df = pd.DataFrame(reduced)
-    # st.bar_chart(df.transpose())
-    st.line_chart(df)
-    # Cluster
-    clustering = OPTICS(min_samples=2).fit(df.transpose())
-    # clustering = MeanShift().fit(df.transpose())
-    # st.bar_chart(clustering.labels_)
-
-    plt.style.use('ggplot')
-    fig, ax = plt.subplots()
-    ax.scatter(reduced.keys(), clustering.labels_, s=100)
-    # ax.bar(reduced.keys(),clustering.labels_)
-    st.table([reduced.keys(), clustering.labels_])
-    st.pyplot(fig)
-
-
 def pop_immunity(df):
     # Population Immunity Threshold
     st.markdown("# Population Immunity and Vaccination Progress for the US")
@@ -711,6 +546,108 @@ def last_peak_progress_bar(df):
         peak_date._date_repr, round(found_thresh, 2)))
     st.progress(found_thresh / 100)
     # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
+
+
+# Unused functions below. May use in future. ---------------------------------------------------------------------------
+@st.cache()
+def ml_regression(X, y, lookahead=7):
+    """
+    Feed correlated and shifted variables into ML model for forecasting.
+    Doesn't seem to do better than weighted average forecast.
+
+    :param X: Correlation table. df[cols]
+    :param y: Target series. df[b]
+    :param lookahead: Forecast this many days ahead.
+    :return: Forecasted series.
+    """
+    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.model_selection import train_test_split
+    y_shift = y.shift(lookahead)
+    X.fillna(0, inplace=True)
+    y_shift.fillna(0, inplace=True)
+    # X.interpolate(inplace=True, limit_direction='both')
+    # y.interpolate(inplace=True, limit_direction='both')
+    X = normalize(X)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y_shift, random_state=0, shuffle=False)
+    reg = GradientBoostingRegressor(random_state=0, verbose=True)
+    # reg = RandomForestRegressor(random_state=0, verbose=True)
+    reg.fit(X_train, y_train)
+
+    pred = reg.predict(X_test)
+
+    score = reg.score(X_test, y_test)
+    reg.fit(X, y_shift)
+
+    # sktime
+    y.fillna(0, inplace=True)
+    y_train, y_test = temporal_train_test_split(y, test_size=14)
+    fh = ForecastingHorizon(y_test.index, is_relative=False)
+    forecaster = ReducedRegressionForecaster(
+        regressor=reg, window_length=12, strategy="recursive"
+    )
+    forecaster.fit(y_train)
+    y_pred = forecaster.predict(fh)
+    fig, ax = plot_series(y_train, y_test, y_pred, labels=["y_train", "y_test", "y_pred"])
+    st.write(fig)
+    smape_loss(y_test, y_pred)
+
+    return reg.predict(X)
+
+
+def rename_columns(df):
+    # todo
+    col_map = {'inIcuCurrently': 'Currently in ICU', 'hospitalizedCurrently': 'Currently Hospitalized',
+               'deathIncrease': 'Daily Deaths', 'positiveIncrease': 'Daily Positive Tests',
+               'percentPositive': 'Percent of Tests Positive',
+               'totalTestResultsIncrease': 'Daily Tests'}
+    mobility_cols = {'retail_and_recreation_percent_change_from_baseline': 'Retail/Recreation Mobility',
+                     'grocery_and_pharmacy_percent_change_from_baseline': 'Grocery/Pharmacy Mobility',
+                     'parks_percent_change_from_baseline': 'Parks Mobility',
+                     'transit_stations_percent_change_from_baseline': 'Transit Stations Mobility',
+                     'workplaces_percent_change_from_baseline': "Workplaces Mobility",
+                     'residential_percent_change_from_baseline': 'Residential Mobility'}
+    df = df.rename(col_map)
+    df = df.rename(mobility_cols)
+
+    cols = list(df.columns)
+    cols.extend(['Case Fatality Rate', 'Infection Fatality Rate'])
+    return df, cols
+
+
+def matplotlib_charts(df, a='deathIncrease', b='positiveIncrease'):
+    plt.style.use('seaborn')
+    st.pyplot(df[[a, b]].plot.line().get_figure())
+    # st.pyplot(df[[a,b]].plot(subplots=True,layout=(2,2)))
+    plots = df[[a, b, 'percentPositive', 'hospitalizedCurrently']].plot.line(subplots=True)
+    st.pyplot(plots[0].get_figure())
+
+    # plt.style.use('fivethirtyeight')
+    plots = df[[a, b, 'percentPositive', 'hospitalizedCurrently']].plot(subplots=True, layout=(2, 2))
+    st.pyplot(plots[0][0].get_figure())
+
+
+def get_correlations(df, cols):
+    st.header("Correlations")
+    df = df[cols]
+    cor_table = df.corr(method='pearson', min_periods=30)
+    st.write(cor_table)
+    max_r = 0
+    max_idx = None
+    seen = []
+    cors = pd.DataFrame(columns=['a', 'b', 'r'])
+    for i in cor_table.index:
+        for j in cor_table.index:
+            if i == j or i == 'index' or j == 'index': continue
+            if cor_table.loc[i, j] == 1: continue
+            if cor_table.loc[i, j] > max_r:
+                max_idx = (i, j)
+                max_r = max(cor_table.loc[i, j], max_r)
+            if (j, i) not in seen:
+                cors = cors.append({'a': i, 'b': j, 'r': cor_table.loc[i, j]}, ignore_index=True)
+                seen.append((i, j))
+    st.write(max_idx, max_r)
+    st.write(cors.sort_values('r', ascending=False).reset_index(drop=True))
 
 
 if __name__ == '__main__':
