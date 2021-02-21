@@ -1,5 +1,7 @@
 # Interactive Covid-19 Forecast and Correlation Explorer
 
+![immunity.png](immunity.png)
+
 ![screenshot-ifr.png](forecast.png)
 
 ![Screen Shot 2020-12-26 at 12.06.43 PM.png](cors.png)
