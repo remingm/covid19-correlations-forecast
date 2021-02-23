@@ -1,27 +1,26 @@
-import urllib
 import copy
-import streamlit as st
-import pandas as pd
-from sklearn.preprocessing import minmax_scale, normalize
+import datetime
+import math
+import os
+import urllib
+import zipfile
+
 import altair as alt
 import matplotlib.pyplot as plt
-from numpy import nan as Nan
 import numpy as np
-import os
-import datetime
-import zipfile
+import pandas as pd
 import statsmodels.api as sm
-
+import streamlit as st
+from matplotlib.backends.backend_agg import RendererAgg
+from numpy import nan as Nan
+from scipy.signal import find_peaks
+from sklearn.preprocessing import minmax_scale, normalize
 from sktime.forecasting.arima import AutoARIMA
 from sktime.forecasting.base import ForecastingHorizon
 from sktime.forecasting.compose import ReducedRegressionForecaster
-from sktime.performance_metrics.forecasting import sMAPE, smape_loss
-from sktime.utils.plotting import plot_series
 from sktime.forecasting.model_selection import temporal_train_test_split
-
-# sktime soft dependencies
-import pmdarima, seaborn
-from scipy.signal import find_peaks
+from sktime.performance_metrics.forecasting import smape_loss
+from sktime.utils.plotting import plot_series
 
 # todo states where cases and deaths are most and least correlated
 
@@ -37,10 +36,6 @@ def download_data(wait_hours=6):
     """
     Periodically download data to csv
     """
-    # data_dir = '/tmp/'
-    # import shutil
-    # shutil.copy("daily.csv",data_dir)
-    # os.path.join(data_dir,'daily.csv')
 
     # Download new data when last mod time was > x hours
     filepath = "vaccine.csv"  # 'daily.csv'
@@ -226,7 +221,6 @@ def calc_prevalence_ratio(df):
     :param df: Dataframe from process_data()
     :return: Dataframe with prevalence_ratio column
     """
-    import math
 
     days_since = df.index - datetime.datetime(year=2020, month=2, day=12)
     df["days_since_feb12"] = days_since.days.values
@@ -255,7 +249,7 @@ def find_max_correlation(col, col2):
     """
     best_cor = -1
     best_i = 0
-    for i in range(len(col) // 4):
+    for i in range(len(col) // 5):
         col1 = col.shift(i)
         correl = col1.corr(col2)
         if correl > best_cor:
@@ -383,9 +377,9 @@ def compute_weighted_forecast(days_back, b, shifted_cors):
     :param shifted_cors: Table of correlated series and shifts
     :return:
     """
-    cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >=0".format(b))
+    cors_df = shifted_cors.query("b == '{}' and r >0.5 and shift >0".format(b))
     if len(cors_df) < 3:
-        cors_df = shifted_cors.query("b == '{}' and r >0.0 and shift >=0".format(b))
+        cors_df = shifted_cors.query("b == '{}' and r >0.0 and shift >0".format(b))
         # st.warning("No strong correlations found for forecasting. Try adjusting lookback window.")
         # st.stop()
     cols = cors_df["a"].values
@@ -510,7 +504,7 @@ def timeseries_forecast(df, colname, days=14):
 
     st.subheader("Forecast")
     sktime_plot(*compute_arima(df, colname, days, True))
-    # y_pred = compute_arima(df, colname, days, True)[0]
+    # y_pred, _, pred_ints, _ = compute_arima(df, colname, days, True)
     # st.line_chart(pd.DataFrame(y_pred).transpose())
 
 
@@ -524,7 +518,6 @@ def sktime_plot(series, labels, pred_ints, alpha):
     :param pred_ints:
     :param alpha:
     """
-    from matplotlib.backends.backend_agg import RendererAgg
 
     _lock = RendererAgg.lock
 
@@ -558,9 +551,8 @@ def pop_immunity(df):
     # Population Immunity Threshold
     st.markdown("# Population Immunity and Vaccination Progress for the US")
     # st.markdown("### Tracking The Return To Normal")
-    vac_col = "First Doses Administered"  # 'Administered_Dose1'
+    vac_col = "First Doses Administered"
     # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
-    # vac_col = 'administered_dose2_adj'
 
     recovered_frac = st.slider(
         "Fraction of vaccinations that go to recovered infections:", 0.0, 0.5, 0.2
@@ -612,7 +604,7 @@ def pop_immunity(df):
     last_peak_progress_bar(df)
 
     # Forecast Immnuity
-    # arima_ui(df,['Estimated Population Immunity %'],0,90)
+    arima_ui(df, ["Estimated Population Immunity %"], 0, 90 * 3)
 
     st.markdown(open("Immunity.md", "r").read())
 
@@ -662,7 +654,7 @@ def ml_regression(X, y, lookahead=7):
     :param lookahead: Forecast this many days ahead.
     :return: Forecasted series.
     """
-    from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+    from sklearn.ensemble import GradientBoostingRegressor
     from sklearn.model_selection import train_test_split
 
     y_shift = y.shift(lookahead)
