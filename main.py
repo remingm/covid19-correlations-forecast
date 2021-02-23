@@ -271,7 +271,7 @@ def plot_cor(col, col2, best_i, best_cor):
     # st.line_chart({col.name: col.shift(best_i), col2.name: col2})
     st.write(
         "{} shifted {} days ahead is correlated with {}. $r={}$".format(
-            col.name, best_i, col2.name, best_cor
+            col.name, best_i, col2.name, round(best_cor,2)
         )
     )
 
