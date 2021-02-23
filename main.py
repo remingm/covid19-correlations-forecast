@@ -604,7 +604,7 @@ def pop_immunity(df):
     last_peak_progress_bar(df)
 
     # Forecast Immnuity
-    arima_ui(df, ["Estimated Population Immunity %"], 0, 90 * 3)
+    # arima_ui(df, ["Estimated Population Immunity %"], 0, 90 * 3)
 
     st.markdown(open("Immunity.md", "r").read())
 
