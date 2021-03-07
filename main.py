@@ -271,7 +271,7 @@ def plot_cor(col, col2, best_i, best_cor):
     # st.line_chart({col.name: col.shift(best_i), col2.name: col2})
     st.write(
         "{} shifted {} days ahead is correlated with {}. $r={}$".format(
-            col.name, best_i, col2.name, round(best_cor,2)
+            col.name, best_i, col2.name, round(best_cor, 2)
         )
     )
 
@@ -589,6 +589,18 @@ def pop_immunity(df):
         * 100
     )
 
+    # matplotlib_charts(
+    #     df.iloc[-30*12:],
+    #     [
+    #         vac_col,
+    #         # "Cumulative Recovered Infections Estimate",
+    #         # "Administered_Dose2",
+    #         "Estimated Population Immunity %",
+    #         "hospitalizedCurrently",
+    #         "positiveIncrease",
+    #     ],
+    # )
+
     immune_progress_bar(df, vac_col)
     st.area_chart(
         df[
@@ -640,6 +652,27 @@ def last_peak_progress_bar(df):
     )
     st.progress(found_thresh / 100)
     # todo x% of immunity was from recovered infections, vaccines, pre-existing immunity from other coronaviruses.
+
+
+def matplotlib_charts(df, cols):
+    plt.style.use("seaborn")
+    # plt.style.use("seaborn-whitegrid")
+    # plt.style.use("fivethirtyeight")
+    # st.pyplot(df[cols].plot.area().get_figure())
+
+    # st.pyplot(df[[
+    #             "Remaining Population",
+    #             "Cumulative Recovered Infections Estimate",
+    #             "First Doses Administered",]
+    #         ].plot.area().get_figure())
+
+    plots = df[cols].plot.line(subplots=True)
+    st.pyplot(plots[0].get_figure())
+
+    # plots = df[cols].plot(
+    #     subplots=True, layout=(2, 2)
+    # )
+    # st.pyplot(plots[0][0].get_figure())
 
 
 # Unused functions below. May use in future. ---------------------------------------------------------------------------
@@ -719,22 +752,6 @@ def rename_columns(df):
     return df, cols
 
 
-def matplotlib_charts(df, a="deathIncrease", b="positiveIncrease"):
-    plt.style.use("seaborn")
-    st.pyplot(df[[a, b]].plot.line().get_figure())
-    # st.pyplot(df[[a,b]].plot(subplots=True,layout=(2,2)))
-    plots = df[[a, b, "percentPositive", "hospitalizedCurrently"]].plot.line(
-        subplots=True
-    )
-    st.pyplot(plots[0].get_figure())
-
-    # plt.style.use('fivethirtyeight')
-    plots = df[[a, b, "percentPositive", "hospitalizedCurrently"]].plot(
-        subplots=True, layout=(2, 2)
-    )
-    st.pyplot(plots[0][0].get_figure())
-
-
 def get_correlations(df, cols):
     st.header("Correlations")
     df = df[cols]
@@ -784,9 +801,13 @@ if __name__ == "__main__":
             "residential_percent_change_from_baseline",
         ]
     )
-    # cols.extend(['doses_administered_daily_7day_avg',])
 
-    download_data(wait_hours=4)
+    '''
+    Disabled data download due to the end of covidtracking.com
+    https://covidtracking.com/analysis-updates/covid-tracking-project-end-march-7
+    '''
+    # download_data(wait_hours=4)
+
     w, h, = (
         900,
         400,
@@ -807,6 +828,7 @@ if __name__ == "__main__":
         )
         st.subheader("Select a state or all US states:")
         all_states = st.checkbox("All US States", True)
+        locations = np.append(["USA Total"], states)
         state = st.selectbox("State", states, index=37)
 
     # https://docs.streamlit.io/en/stable/troubleshooting/caching_issues.html#how-to-fix-the-cached-object-mutated-warning
