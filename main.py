@@ -802,11 +802,9 @@ if __name__ == "__main__":
         ]
     )
 
-    '''
     # Disabled data download due to the end of covidtracking.com
     # https://covidtracking.com/analysis-updates/covid-tracking-project-end-march-7
     # todo switch to Johns Hopkins Github repo
-    '''
     # download_data(wait_hours=4)
 
     w, h, = (
