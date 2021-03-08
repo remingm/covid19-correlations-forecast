@@ -902,3 +902,5 @@ if __name__ == "__main__":
     st.write(
         "Disclaimer: This site was made by a data scientist, not an infectious disease expert."
     )
+
+    st.markdown("![visitors](https://visitor-badge.glitch.me/badge?page_id=remingm.covid)")
