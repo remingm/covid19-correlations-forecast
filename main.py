@@ -551,8 +551,8 @@ def pop_immunity(df):
     # Population Immunity Threshold
     st.markdown("# Population Immunity and Vaccination Progress for the US")
     # st.markdown("### Tracking The Return To Normal")
-    vac_col = "First Doses Administered"
-    # vac_col = st.selectbox("Count first dose or second?",["Administered_Dose2","Administered_Dose1"])
+    # vac_col = "First Doses Administered"
+    vac_col = st.selectbox("Count first dose or second?",["First Doses Administered","Administered_Dose2"])
 
     recovered_frac = st.slider(
         "Fraction of vaccinations that go to recovered infections:", 0.0, 0.5, 0.2
