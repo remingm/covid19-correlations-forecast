@@ -228,9 +228,13 @@ def calc_prevalence_ratio(df):
     for i, row in df.iterrows():
         try:
             # prevalence_ratio = (1250 / (row['days_since_feb12'] + 25)) * math.pow(row['percentPositive'], 0.5) + 2
-            prevalence_ratio = (1500 / (row["days_since_feb12"] + 50)) * math.pow(
+            # prevalence_ratio = (1500 / (row["days_since_feb12"] + 50)) * math.pow(
+            #     row["percentPositive"], 0.5
+            # ) + 2
+            prevalence_ratio = (1000 / (row["days_since_feb12"] + 10)) * math.pow(
                 row["percentPositive"], 0.5
             ) + 2
+            # st.write(prevalence_ratio)
         except:
             prevalence_ratio = p_r_list[-1]
         p_r_list.append(prevalence_ratio)
