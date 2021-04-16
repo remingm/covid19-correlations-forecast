@@ -784,7 +784,7 @@ def get_correlations(df, cols):
 
 
 if __name__ == "__main__":
-    st.info("Note: My main data source, covidtracking.com, has shut down their operation. The data here was last updated March 7, 2021. I will migrate to a new data source in the future.")
+    st.info("Note: My main data source, covidtracking.com, has shut down their operation. The data here was last updated March 7, 2021.")
     # todo global cols lists. One for cors and one for UI
     cols = [
         "Infection Fatality Rate",
